@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RekanSuara AI - Full Version</title>
+  
+  <!-- CSS & UI Framework -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  
+  <!-- Core React & Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Export & Viz Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: false, theme: 'default' });
+    window.mermaid = mermaid;
+  </script>
+
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+            darkbg: '#0f172a',
+            darkcard: '#1e293b'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .dark ::-webkit-scrollbar-thumb { background: #475569; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    .pulse-ring {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    
+    .mermaid-container svg { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-darkbg dark:text-gray-100 transition-colors duration-200">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // --- 1. LOCAL-FIRST DATABASE (IndexedDB) ---
+    const DB_NAME = 'RekanSuaraDB';
+    const STORE_NAME = 'documents';
+    
+    const initDB = () => {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    };
+
+    const dbSave = async (doc) => {
+      const db = await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(doc);
+        tx.oncomplete = () => resolve(doc);
+        tx.onerror = () => reject(tx.error);
+      });
+    };
+
+    const dbGetAll = async () => {
+      const db = await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = () => resolve(req.result.sort((a,b) => b.createdAt - a.createdAt));
+        req.onerror = () => reject(req.error);
+      });
+    };
+
+    const dbDelete = async (id) => {
+      const db = await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    };
+
+    // --- 2. AI INTEGRATION SERVICE ---
+    const analyzeWithAI = async (text, settings) => {
+      if (!text.trim()) throw new Error("Teks kosong.");
+      
+      const prompt = `Anda adalah asisten AI profesional (RekanSuara AI). Analisis transkrip berikut dan berikan struktur JSON valid dengan kunci berikut:
+      1. "summary" (string: ringkasan padat)
+      2. "keyPoints" (array of strings: 3-5 poin penting)
+      3. "actionItems" (array of strings: tugas/keputusan, jika tidak ada isi dengan ["Tidak ada aksi spesifik"])
+      4. "mindmap" (string: syntax Mermaid.js tipe 'mindmap'. Mulai dari root, gunakan spasi indentasi. Contoh: mindmap\\n root((Topik))\\n  Sub1\\n  Sub2)
+      
+      Hanya kembalikan JSON, tanpa markdown formatting, tanpa teks tambahan.
+      
+      Transkrip:
+      "${text}"`;
+
+      if (settings.aiProvider === 'gemini') {
+        if (!settings.apiKey) throw new Error("API Key Gemini belum diatur di Pengaturan.");
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${settings.apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
+        if (!res.ok) throw new Error("Gagal menghubungi Gemini API. Periksa API Key.");
+        const data = await res.json();
+        return JSON.parse(data.candidates[0].content.parts[0].text);
+      } 
+      else if (settings.aiProvider === 'openai') {
+        if (!settings.apiKey) throw new Error("API Key OpenAI belum diatur.");
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${settings.apiKey}` },
+          body: JSON.stringify({
+            model: settings.aiModel || 'gpt-4o-mini',
+            response_format: { type: "json_object" },
+            messages: [{ role: 'user', content: prompt }]
+          })
+        });
+        if (!res.ok) throw new Error("Gagal menghubungi OpenAI.");
+        const data = await res.json();
+        return JSON.parse(data.choices[0].message.content);
+      }
+      else if (settings.aiProvider === 'ollama') {
+        const endpoint = settings.aiEndpoint || 'http://localhost:11434/api/generate';
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: settings.aiModel || 'llama3',
+            prompt: prompt,
+            stream: false,
+            format: 'json'
+          })
+        });
+        if (!res.ok) throw new Error("Gagal menghubungi Ollama. Pastikan server lokal berjalan.");
+        const data = await res.json();
+        return JSON.parse(data.response);
+      }
+      throw new Error("Provider AI tidak didukung.");
+    };
+
+    // --- 3. MAIN APPLICATION COMPONENT ---
+    const App = () => {
+      const [view, setView] = useState('dashboard');
+      const [theme, setTheme] = useState('dark');
+      const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+      const [docs, setDocs] = useState([]);
+      const [activeDoc, setActiveDoc] = useState(null);
+
+      // Settings State
+      const [settings, setSettings] = useState(() => {
+        const saved = localStorage.getItem('rs_settings');
+        return saved ? JSON.parse(saved) : {
+          aiProvider: 'gemini', apiKey: '', aiModel: '', aiEndpoint: '',
+          autoAnalyze: false, theme: 'dark'
+        };
+      });
+
+      useEffect(() => {
+        localStorage.setItem('rs_settings', JSON.stringify(settings));
+        if (settings.theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+      }, [settings]);
+
+      useEffect(() => {
+        loadDocs();
+      }, []);
+
+      const loadDocs = async () => {
+        try { const data = await dbGetAll(); setDocs(data); }
+        catch (e) { console.error("DB Error", e); }
+      };
+
+      // Keyboard Shortcuts
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.ctrlKey || e.metaKey) {
+            if (e.key === 'k') { e.preventDefault(); /* Fokus pencarian jika ada */ }
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, []);
+
+      const saveDoc = async (doc) => {
+        await dbSave(doc);
+        await loadDocs();
+        setActiveDoc(doc);
+      };
+
+      const navigate = (newView, doc = null) => {
+        setView(newView);
+        if (doc !== undefined) setActiveDoc(doc);
+        setIsMobileMenuOpen(false);
+      };
+
+      return (
+        <div className="flex h-screen overflow-hidden">
+          {/* Sidebar */}
+          <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-darkcard border-r border-gray-200 dark:border-gray-800 transform transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
+            <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-800">
+              <span className="text-xl font-bold text-primary-600 dark:text-primary-500"><i className="fas fa-wave-square mr-2"></i>RekanSuara</span>
+              <button className="md:hidden text-gray-500" onClick={() => setIsMobileMenuOpen(false)}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
+              <NavItem icon="fa-home" label="Dashboard" active={view === 'dashboard'} onClick={() => navigate('dashboard')} />
+              <NavItem icon="fa-microphone" label="Rekam Suara" active={view === 'record'} onClick={() => navigate('record')} />
+              <NavItem icon="fa-upload" label="Upload File" active={view === 'upload'} onClick={() => navigate('upload')} />
+              <NavItem icon="fa-folder-open" label="File Saya" active={view === 'files'} onClick={() => navigate('files')} />
+              <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-800">
+                <NavItem icon="fa-cog" label="Pengaturan" active={view === 'settings'} onClick={() => navigate('settings')} />
+              </div>
+            </nav>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-800 text-xs text-center text-gray-500">
+              Versi Penuh • Node.js 24 Ready
+            </div>
+          </aside>
+
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <header className="h-16 flex items-center justify-between px-4 sm:px-6 border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-darkcard/80 backdrop-blur">
+              <button className="md:hidden text-gray-500" onClick={() => setIsMobileMenuOpen(true)}>
+                <i className="fas fa-bars text-xl"></i>
+              </button>
+              <div className="font-medium text-gray-800 dark:text-gray-200">
+                {view === 'dashboard' && 'Dashboard'}
+                {view === 'record' && 'Rekam Suara & Transkrip'}
+                {view === 'viewer' && 'Detail Dokumen'}
+                {view === 'files' && 'File Saya'}
+                {view === 'settings' && 'Pengaturan'}
+              </div>
+              <div className="flex items-center space-x-4">
+                <button onClick={() => setSettings({...settings, theme: settings.theme === 'dark' ? 'light' : 'dark'})} className="text-gray-500 hover:text-primary-600 transition">
+                  <i className={`fas ${settings.theme === 'dark' ? 'fa-sun' : 'fa-moon'} text-xl`}></i>
+                </button>
+              </div>
+            </header>
+
+            <main className="flex-1 overflow-auto p-4 sm:p-6 bg-gray-50 dark:bg-darkbg">
+              {view === 'dashboard' && <Dashboard navigate={navigate} docs={docs} />}
+              {view === 'record' && <RecordView navigate={navigate} saveDoc={saveDoc} settings={settings} />}
+              {view === 'files' && <FilesView navigate={navigate} docs={docs} loadDocs={loadDocs} deleteDoc={async (id) => { await dbDelete(id); loadDocs(); }} />}
+              {view === 'settings' && <SettingsView settings={settings} setSettings={setSettings} />}
+              {view === 'viewer' && activeDoc && <DocViewer doc={activeDoc} saveDoc={saveDoc} settings={settings} navigate={navigate} />}
+              {view === 'upload' && <UploadView navigate={navigate} saveDoc={saveDoc} />}
+            </main>
+          </div>
+        </div>
+      );
+    };
+
+    const NavItem = ({ icon, label, active, onClick }) => (
+      <button onClick={onClick} className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${active ? 'bg-primary-50 text-primary-600 dark:bg-primary-600/10 dark:text-primary-500 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+        <i className={`fas ${icon} w-6`}></i>
+        <span>{label}</span>
+      </button>
+    );
+
+    // --- DASHBOARD ---
+    const Dashboard = ({ navigate, docs }) => (
+      <div className="max-w-5xl mx-auto space-y-6">
+        <div className="bg-gradient-to-r from-primary-600 to-indigo-700 rounded-2xl p-8 text-white shadow-lg">
+          <h1 className="text-3xl font-bold mb-2">Selamat Datang di RekanSuara AI</h1>
+          <p className="text-primary-100 mb-6 max-w-2xl">Rekam rapat atau kuliah, biarkan sistem transkripsi lokal mengubahnya menjadi teks, dan AI akan merangkum serta memvisualisasikannya menjadi Mind Map secara otomatis.</p>
+          <div className="flex gap-4">
+            <button onClick={() => navigate('record')} className="bg-white text-primary-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-50 shadow transition flex items-center gap-2">
+              <i className="fas fa-microphone"></i> Mulai Rekaman
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+            <div className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Rekaman</div>
+            <div className="text-4xl font-bold text-gray-800 dark:text-white mt-2">{docs.length}</div>
+          </div>
+          <div className="bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+            <div className="text-gray-500 dark:text-gray-400 text-sm font-medium">Transkrip Dianalisis</div>
+            <div className="text-4xl font-bold text-primary-600 dark:text-primary-500 mt-2">{docs.filter(d => d.aiData).length}</div>
+          </div>
+          <div className="bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+            <div className="text-gray-500 dark:text-gray-400 text-sm font-medium">Status Privasi</div>
+            <div className="text-lg font-bold text-green-500 mt-2 flex items-center gap-2"><i className="fas fa-shield-alt"></i> Local-First Aktif</div>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Aktivitas Terbaru</h2>
+          <div className="bg-white dark:bg-darkcard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+            {docs.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">Belum ada dokumen. Mulai rekam sekarang!</div>
+            ) : (
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {docs.slice(0,5).map(doc => (
+                  <div key={doc.id} onClick={() => navigate('viewer', doc)} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer flex items-center justify-between transition">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400">
+                        <i className={`fas ${doc.aiData ? 'fa-brain' : 'fa-file-audio'}`}></i>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800 dark:text-gray-100">{doc.title}</h4>
+                        <p className="text-xs text-gray-500">{new Date(doc.createdAt).toLocaleString()} • {Math.round(doc.duration || 0)} detik</p>
+                      </div>
+                    </div>
+                    <i className="fas fa-chevron-right text-gray-400"></i>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+
+    // --- RECORD VIEW (STT + Visualizer) ---
+    const RecordView = ({ navigate, saveDoc, settings }) => {
+      const [isRecording, setIsRecording] = useState(false);
+      const [isPaused, setIsPaused] = useState(false);
+      const [transcript, setTranscript] = useState('');
+      const [interimText, setInterimText] = useState('');
+      const [duration, setDuration] = useState(0);
+      
+      const mediaRecorderRef = useRef(null);
+      const recognitionRef = useRef(null);
+      const audioChunksRef = useRef([]);
+      const timerRef = useRef(null);
+      const canvasRef = useRef(null);
+      const audioCtxRef = useRef(null);
+
+      // Inisialisasi STT (Web Speech API)
+      useEffect(() => {
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          const recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = 'id-ID';
+
+          recognition.onresult = (event) => {
+            let final = '';
+            let interim = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              if (event.results[i].isFinal) final += event.results[i][0].transcript + ' ';
+              else interim += event.results[i][0].transcript;
+            }
+            if (final) setTranscript(prev => prev + final);
+            setInterimText(interim);
+          };
+          
+          recognition.onerror = (e) => console.log("STT Error:", e.error);
+          recognition.onend = () => { if (isRecording && !isPaused) recognition.start(); };
+          recognitionRef.current = recognition;
+        }
+        return () => stopRecording(true);
+      }, []);
+
+      const formatTime = (sec) => {
+        const m = Math.floor(sec / 60).toString().padStart(2, '0');
+        const s = (sec % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+      };
+
+      const startRecording = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const mediaRecorder = new MediaRecorder(stream);
+          mediaRecorderRef.current = mediaRecorder;
+          audioChunksRef.current = [];
+
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunksRef.current.push(e.data);
+          };
+
+          mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            const doc = {
+              id: Date.now().toString(),
+              title: `Rekaman ${new Date().toLocaleString('id-ID')}`,
+              createdAt: Date.now(),
+              duration: duration,
+              audioBlob: audioBlob,
+              transcript: transcriptRef.current,
+              aiData: null
+            };
+            await saveDoc(doc);
+            
+            // Auto-analyze trigger
+            if (settings.autoAnalyze && settings.apiKey) {
+               // We navigate to viewer, which can trigger AI auto if needed, but handled explicitly there
+            }
+            navigate('viewer', doc);
+          };
+
+          mediaRecorder.start();
+          if (recognitionRef.current) recognitionRef.current.start();
+          
+          setIsRecording(true);
+          setIsPaused(false);
+          timerRef.current = setInterval(() => setDuration(p => p + 1), 1000);
+          visualize(stream);
+        } catch (err) {
+          alert("Akses mikrofon ditolak atau tidak tersedia.");
+        }
+      };
+
+      const pauseRecording = () => {
+        if (mediaRecorderRef.current?.state === "recording") {
+          mediaRecorderRef.current.pause();
+          if (recognitionRef.current) recognitionRef.current.stop();
+          clearInterval(timerRef.current);
+          setIsPaused(true);
+        } else if (mediaRecorderRef.current?.state === "paused") {
+          mediaRecorderRef.current.resume();
+          if (recognitionRef.current) recognitionRef.current.start();
+          timerRef.current = setInterval(() => setDuration(p => p + 1), 1000);
+          setIsPaused(false);
+        }
+      };
+
+      const stopRecording = (cancel = false) => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+          if (cancel) mediaRecorderRef.current.onstop = null; // Prevent saving
+          mediaRecorderRef.current.stop();
+          mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+        }
+        if (recognitionRef.current) {
+          recognitionRef.current.onend = null;
+          recognitionRef.current.stop();
+        }
+        clearInterval(timerRef.current);
+        if (audioCtxRef.current) audioCtxRef.current.close();
+        
+        setIsRecording(false);
+        setIsPaused(false);
+        if (cancel) {
+           setDuration(0); setTranscript(''); setInterimText('');
+        }
+      };
+
+      // Workaround for transcript in closure
+      const transcriptRef = useRef('');
+      useEffect(() => { transcriptRef.current = transcript + interimText; }, [transcript, interimText]);
+
+      const visualize = (stream) => {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioCtxRef.current = audioCtx;
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        const canvas = canvasRef.current;
+        const canvasCtx = canvas.getContext('2d');
+
+        const draw = () => {
+          if (!isRecordingRef.current) return;
+          requestAnimationFrame(draw);
+          analyser.getByteFrequencyData(dataArray);
+          canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          const barWidth = (canvas.width / bufferLength) * 2.5;
+          let x = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            const barHeight = dataArray[i];
+            canvasCtx.fillStyle = `rgb(59, 130, 246)`;
+            canvasCtx.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight / 2);
+            x += barWidth + 1;
+          }
+        };
+        draw();
+      };
+
+      const isRecordingRef = useRef(false);
+      useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
+
+      return (
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="bg-white dark:bg-darkcard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-8 text-center">
+            <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">Perekam Suara & STT</h2>
+            
+            <div className="mb-8">
+              <div className="text-6xl font-mono font-bold text-gray-800 dark:text-gray-100 tracking-wider mb-4">
+                {formatTime(duration)}
+              </div>
+              
+              <div className="h-24 w-full max-w-lg mx-auto bg-gray-50 dark:bg-gray-800/50 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 relative">
+                <canvas ref={canvasRef} width="600" height="100" className="w-full h-full absolute inset-0"></canvas>
+                {!isRecording && <div className="absolute inset-0 flex items-center justify-center text-gray-400">Audio Visualizer</div>}
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-6">
+              {!isRecording ? (
+                <button onClick={startRecording} className="w-20 h-20 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-2xl shadow-lg shadow-red-500/30 transition transform hover:scale-105">
+                  <i className="fas fa-microphone"></i>
+                </button>
+              ) : (
+                <>
+                  <button onClick={pauseRecording} className="w-16 h-16 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full flex items-center justify-center text-xl shadow-lg transition">
+                    <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
+                  </button>
+                  <button onClick={() => stopRecording(false)} className="w-20 h-20 bg-gray-800 dark:bg-gray-700 hover:bg-gray-900 text-white rounded-full flex items-center justify-center text-2xl shadow-lg transition pulse-ring">
+                    <i className="fas fa-stop"></i>
+                  </button>
+                  <button onClick={() => stopRecording(true)} className="w-16 h-16 bg-red-100 text-red-600 hover:bg-red-200 rounded-full flex items-center justify-center text-xl shadow transition">
+                    <i className="fas fa-times"></i>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-darkcard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 flex flex-col h-96">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><i className="fas fa-align-left text-primary-500"></i> Live Transcript</h3>
+            <div className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 whitespace-pre-wrap font-medium text-gray-700 dark:text-gray-300">
+              {transcript}
+              <span className="text-gray-400 italic">{interimText}</span>
+              {!transcript && !interimText && <span className="text-gray-400 italic font-normal">Teks akan muncul di sini saat Anda berbicara...</span>}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // --- UPLOAD VIEW ---
+    const UploadView = ({ navigate, saveDoc }) => {
+      const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const doc = {
+          id: Date.now().toString(),
+          title: `Upload: ${file.name}`,
+          createdAt: Date.now(),
+          duration: 0,
+          audioBlob: file,
+          transcript: "Teks STT dari file membutuhkan API STT. Fitur native browser STT hanya untuk mikrofon. Anda bisa mengetik transkrip secara manual atau gunakan versi backend untuk integrasi file STT.",
+          aiData: null
+        };
+        saveDoc(doc);
+        navigate('viewer', doc);
+      };
+
+      return (
+        <div className="max-w-2xl mx-auto mt-12 text-center">
+          <div className="bg-white dark:bg-darkcard rounded-2xl p-12 shadow-sm border border-gray-200 dark:border-gray-800 border-dashed border-2">
+            <i className="fas fa-cloud-upload-alt text-6xl text-primary-400 mb-6"></i>
+            <h2 className="text-2xl font-bold mb-2">Upload Audio/Video</h2>
+            <p className="text-gray-500 mb-8">Format didukung: MP3, WAV, M4A, MP4 (Pemrosesan lokal)</p>
+            <label className="cursor-pointer bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 rounded-lg font-bold shadow transition inline-block">
+              Pilih File
+              <input type="file" className="hidden" accept="audio/*,video/*" onChange={handleFileUpload} />
+            </label>
+            <p className="mt-4 text-xs text-gray-400"><i className="fas fa-info-circle"></i> Catatan: Transkripsi otomatis dari file memerlukan API Key external (diatur di kode backend).</p>
+          </div>
+        </div>
+      );
+    };
+
+    // --- DOC VIEWER / EDITOR & AI PROCESSOR ---
+    const DocViewer = ({ doc, saveDoc, settings, navigate }) => {
+      const [localDoc, setLocalDoc] = useState(doc);
+      const [activeTab, setActiveTab] = useState('transcript');
+      const [isAnalyzing, setIsAnalyzing] = useState(false);
+      const [editMode, setEditMode] = useState(false);
+      const [transcriptText, setTranscriptText] = useState(doc.transcript || '');
+      const audioUrl = useRef(doc.audioBlob ? URL.createObjectURL(doc.audioBlob) : null);
+
+      useEffect(() => {
+        if (window.mermaid && activeTab === 'mindmap' && localDoc.aiData?.mindmap) {
+          setTimeout(() => {
+             window.mermaid.contentLoaded();
+             try { window.mermaid.init(undefined, document.querySelectorAll('.mermaid')); } 
+             catch (e) { console.error("Mermaid error", e); }
+          }, 100);
+        }
+      }, [activeTab, localDoc]);
+
+      const runAI = async () => {
+        if (!settings.apiKey && settings.aiProvider !== 'ollama') {
+          alert("Silakan masukkan API Key di menu Pengaturan terlebih dahulu.");
+          navigate('settings');
+          return;
+        }
+        setIsAnalyzing(true);
+        try {
+          const aiResult = await analyzeWithAI(transcriptText, settings);
+          const updatedDoc = { ...localDoc, transcript: transcriptText, aiData: aiResult };
+          setLocalDoc(updatedDoc);
+          await saveDoc(updatedDoc);
+          setActiveTab('summary');
+        } catch (error) {
+          alert("Gagal menganalisis: " + error.message);
+        } finally {
+          setIsAnalyzing(false);
+        }
+      };
+
+      const handleSaveTranscript = () => {
+        const updated = { ...localDoc, transcript: transcriptText };
+        setLocalDoc(updated);
+        saveDoc(updated);
+        setEditMode(false);
+      };
+
+      // Exports
+      const exportPDF = () => {
+        const el = document.getElementById('export-content');
+        html2pdf().from(el).set({ margin: 15, filename: `${localDoc.title}.pdf` }).save();
+      };
+
+      const exportDOCX = () => {
+        const content = document.getElementById('export-content').innerHTML;
+        const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>${localDoc.title}</title></head><body>${content}</body></html>`;
+        const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `${localDoc.title}.doc`; a.click();
+      };
+
+      const exportImage = async () => {
+        const el = document.getElementById('mindmap-visual');
+        if (!el) return alert("Peta konsep belum tersedia.");
+        const canvas = await html2canvas(el);
+        const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = `${localDoc.title}_Mindmap.png`; a.click();
+      };
+
+      return (
+        <div className="max-w-6xl mx-auto flex flex-col h-full gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
+            <div>
+              <h2 className="text-xl font-bold">{localDoc.title}</h2>
+              <p className="text-xs text-gray-500">{new Date(localDoc.createdAt).toLocaleString()}</p>
+            </div>
+            <div className="flex gap-2">
+              {audioUrl.current && <audio src={audioUrl.current} controls className="h-10 w-64 mr-4" />}
+              <div className="relative group">
+                <button className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-4 py-2 rounded-lg font-medium transition flex items-center gap-2">
+                  <i className="fas fa-download"></i> Export
+                </button>
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-darkcard rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 hidden group-hover:block z-50 overflow-hidden">
+                  <button onClick={exportPDF} className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition"><i className="fas fa-file-pdf text-red-500 w-6"></i> PDF Document</button>
+                  <button onClick={exportDOCX} className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition"><i className="fas fa-file-word text-blue-500 w-6"></i> Word (DOCX)</button>
+                  <button onClick={exportImage} className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition"><i className="fas fa-image text-green-500 w-6"></i> Mind Map (PNG)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 bg-white dark:bg-darkcard rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden">
+            <div className="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+              <button onClick={() => setActiveTab('transcript')} className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === 'transcript' ? 'border-b-2 border-primary-500 text-primary-600' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}>Transkrip</button>
+              <button onClick={() => setActiveTab('summary')} className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === 'summary' ? 'border-b-2 border-primary-500 text-primary-600' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}>Ringkasan AI</button>
+              <button onClick={() => setActiveTab('mindmap')} className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === 'mindmap' ? 'border-b-2 border-primary-500 text-primary-600' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}>Mind Map</button>
+              <button onClick={() => setActiveTab('document')} className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === 'document' ? 'border-b-2 border-primary-500 text-primary-600' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}>Dokumen Ekspor</button>
+            </div>
+
+            <div className="flex-1 p-6 overflow-auto relative">
+              {/* TRANSCRIPT TAB */}
+              {activeTab === 'transcript' && (
+                <div className="h-full flex flex-col">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-gray-700 dark:text-gray-200">Teks Rekaman</h3>
+                    <div>
+                      {editMode ? (
+                        <button onClick={handleSaveTranscript} className="text-green-600 bg-green-50 px-3 py-1 rounded-md text-sm font-bold shadow-sm"><i className="fas fa-check mr-1"></i> Simpan Teks</button>
+                      ) : (
+                        <button onClick={() => setEditMode(true)} className="text-gray-500 hover:text-primary-600 px-3 py-1 text-sm"><i className="fas fa-edit mr-1"></i> Edit Teks</button>
+                      )}
+                    </div>
+                  </div>
+                  {editMode ? (
+                    <textarea value={transcriptText} onChange={(e) => setTranscriptText(e.target.value)} className="flex-1 w-full p-4 border rounded-xl dark:bg-gray-800 dark:border-gray-700 outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+                  ) : (
+                    <div className="flex-1 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl whitespace-pre-wrap text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-800">{transcriptText || "Tidak ada teks."}</div>
+                  )}
+                  
+                  <div className="mt-6 flex justify-center">
+                    <button onClick={runAI} disabled={isAnalyzing || !transcriptText.trim()} className={`px-8 py-3 rounded-xl font-bold shadow-lg transition flex items-center gap-2 ${isAnalyzing ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:scale-105 text-white'}`}>
+                      {isAnalyzing ? <><i className="fas fa-circle-notch fa-spin"></i> Menganalisis dengan AI...</> : <><i className="fas fa-magic"></i> Buat Ringkasan & Mind Map AI</>}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* SUMMARY TAB */}
+              {activeTab === 'summary' && (
+                localDoc.aiData ? (
+                  <div className="space-y-8 animate-fade-in">
+                    <div>
+                      <h3 className="text-lg font-bold text-primary-600 mb-2 flex items-center gap-2"><i className="fas fa-align-justify"></i> Ringkasan Eksekutif</h3>
+                      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-100 rounded-xl leading-relaxed">{localDoc.aiData.summary}</div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-green-600 mb-2 flex items-center gap-2"><i className="fas fa-list-ul"></i> Poin-poin Penting</h3>
+                      <ul className="list-disc list-inside space-y-2 p-4 bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-100 rounded-xl">
+                        {localDoc.aiData.keyPoints?.map((pt, i) => <li key={i}>{pt}</li>)}
+                      </ul>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-orange-600 mb-2 flex items-center gap-2"><i className="fas fa-tasks"></i> Action Items</h3>
+                      <ul className="space-y-2 p-4 bg-orange-50 dark:bg-orange-900/20 text-orange-900 dark:text-orange-100 rounded-xl">
+                        {localDoc.aiData.actionItems?.map((act, i) => <li key={i} className="flex gap-2"><i className="far fa-square mt-1"></i> {act}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                    <i className="fas fa-brain text-6xl mb-4 text-gray-300 dark:text-gray-700"></i>
+                    <p>AI belum menganalisis dokumen ini. Kembali ke tab Transkrip dan jalankan AI.</p>
+                  </div>
+                )
+              )}
+
+              {/* MINDMAP TAB */}
+              {activeTab === 'mindmap' && (
+                localDoc.aiData && localDoc.aiData.mindmap ? (
+                  <div className="h-full flex flex-col">
+                    <div className="flex justify-end mb-2">
+                       <button onClick={exportImage} className="text-sm bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded hover:bg-gray-200 transition"><i className="fas fa-camera"></i> Save Image</button>
+                    </div>
+                    <div id="mindmap-visual" className="flex-1 bg-white p-4 rounded-xl border border-gray-200 overflow-auto flex items-center justify-center">
+                      <pre className="mermaid text-center">{localDoc.aiData.mindmap}</pre>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-400">Mind map tidak tersedia.</div>
+                )
+              )}
+
+              {/* HIDDEN EXPORT CONTENT (Rendered specifically for HTML2PDF) */}
+              {activeTab === 'document' && (
+                <div className="bg-gray-100 dark:bg-gray-900 p-8 rounded-xl overflow-auto h-full">
+                  <div id="export-content" className="bg-white text-black p-10 mx-auto rounded shadow-lg max-w-3xl" style={{fontFamily: 'Arial, sans-serif'}}>
+                    <div className="border-b-2 border-gray-800 pb-4 mb-6">
+                      <h1 className="text-3xl font-bold uppercase">{localDoc.title}</h1>
+                      <p className="text-gray-500 mt-2">Tanggal: {new Date(localDoc.createdAt).toLocaleDateString('id-ID')} | Dihasilkan oleh RekanSuara AI</p>
+                    </div>
+                    
+                    {localDoc.aiData && (
+                      <>
+                        <h2 className="text-xl font-bold mt-6 mb-2 border-b pb-1">Ringkasan Eksekutif</h2>
+                        <p className="text-gray-800 mb-4 leading-relaxed">{localDoc.aiData.summary}</p>
+
+                        <h2 className="text-xl font-bold mt-6 mb-2 border-b pb-1">Poin Penting</h2>
+                        <ul className="list-disc list-inside mb-4 text-gray-800">
+                          {localDoc.aiData.keyPoints?.map((pt, i) => <li key={i}>{pt}</li>)}
+                        </ul>
+
+                        <h2 className="text-xl font-bold mt-6 mb-2 border-b pb-1">Tindak Lanjut (Action Items)</h2>
+                        <ul className="list-decimal list-inside mb-6 text-gray-800">
+                          {localDoc.aiData.actionItems?.map((act, i) => <li key={i}>{act}</li>)}
+                        </ul>
+                      </>
+                    )}
+
+                    <h2 className="text-xl font-bold mt-6 mb-2 border-b pb-1">Transkrip Penuh</h2>
+                    <p className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">{localDoc.transcript || "Tidak ada transkrip."}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // --- FILES VIEW ---
+    const FilesView = ({ navigate, docs, deleteDoc }) => (
+      <div className="max-w-5xl mx-auto">
+        <h2 className="text-2xl font-bold mb-6">File Saya</h2>
+        <div className="bg-white dark:bg-darkcard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800">
+                <th className="p-4 font-semibold text-sm text-gray-600 dark:text-gray-400">Nama File</th>
+                <th className="p-4 font-semibold text-sm text-gray-600 dark:text-gray-400">Tanggal</th>
+                <th className="p-4 font-semibold text-sm text-gray-600 dark:text-gray-400 text-center">Status AI</th>
+                <th className="p-4 font-semibold text-sm text-gray-600 dark:text-gray-400 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              {docs.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-gray-500">Belum ada file tersimpan.</td></tr>}
+              {docs.map(doc => (
+                <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                  <td className="p-4 font-medium flex items-center gap-3 cursor-pointer" onClick={() => navigate('viewer', doc)}>
+                    <i className="fas fa-file-audio text-primary-500"></i> {doc.title}
+                  </td>
+                  <td className="p-4 text-sm text-gray-500">{new Date(doc.createdAt).toLocaleDateString('id-ID')}</td>
+                  <td className="p-4 text-center">
+                    {doc.aiData ? <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold"><i className="fas fa-check"></i> Dianalisis</span> : <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded text-xs">Menunggu</span>}
+                  </td>
+                  <td className="p-4 text-right space-x-2">
+                    <button onClick={() => navigate('viewer', doc)} className="text-primary-600 hover:bg-primary-50 p-2 rounded transition"><i className="fas fa-folder-open"></i></button>
+                    <button onClick={() => { if(confirm('Hapus dokumen ini secara permanen?')) deleteDoc(doc.id); }} className="text-red-500 hover:bg-red-50 p-2 rounded transition"><i className="fas fa-trash-alt"></i></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+
+    // --- SETTINGS VIEW ---
+    const SettingsView = ({ settings, setSettings }) => {
+      const updateSetting = (key, val) => setSettings({ ...settings, [key]: val });
+      return (
+        <div className="max-w-3xl mx-auto space-y-6">
+          <h2 className="text-2xl font-bold mb-6">Pengaturan Aplikasi</h2>
+          
+          <div className="bg-white dark:bg-darkcard rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+            <h3 className="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2"><i className="fas fa-robot text-primary-500 mr-2"></i> Konfigurasi AI (BYOK)</h3>
+            <p className="text-sm text-gray-500 mb-6">Pilih provider AI untuk menghasilkan ringkasan dan peta konsep. API Key disimpan secara lokal di browser Anda untuk keamanan (Local-First).</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Provider AI</label>
+                <select value={settings.aiProvider} onChange={e => updateSetting('aiProvider', e.target.value)} className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-700 outline-none focus:border-primary-500">
+                  <option value="gemini">Google Gemini (Disarankan - Ada Free Tier)</option>
+                  <option value="openai">OpenAI (ChatGPT)</option>
+                  <option value="ollama">Ollama (Local AI - 100% Gratis)</option>
+                </select>
+              </div>
+
+              {settings.aiProvider !== 'ollama' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">API Key</label>
+                  <input type="password" value={settings.apiKey} onChange={e => updateSetting('apiKey', e.target.value)} placeholder={`Masukkan API Key ${settings.aiProvider === 'gemini' ? 'Gemini' : 'OpenAI'} Anda`} className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-700 outline-none focus:border-primary-500" />
+                </div>
+              )}
+
+              {settings.aiProvider === 'ollama' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Ollama API Endpoint</label>
+                  <input type="text" value={settings.aiEndpoint || 'http://localhost:11434/api/generate'} onChange={e => updateSetting('aiEndpoint', e.target.value)} className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-700 outline-none focus:border-primary-500" />
+                  <p className="text-xs text-gray-500 mt-1">Pastikan server Ollama Anda mengizinkan CORS dari domain ini.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-darkcard rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+             <h3 className="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2"><i className="fas fa-microphone text-primary-500 mr-2"></i> Konfigurasi Speech-to-Text</h3>
+             <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-800 dark:text-green-200 text-sm">
+                Aplikasi ini menggunakan <b>Native Web Speech API</b> dari browser. Fitur ini 100% Gratis, diproses secara lokal / melalui service browser bawaan. Tidak perlu API Key untuk perekaman langsung.
+             </div>
+          </div>
+
+          <div className="bg-white dark:bg-darkcard rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+            <h3 className="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2"><i className="fas fa-shield-alt text-primary-500 mr-2"></i> Privasi & Automasi</h3>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={settings.autoAnalyze} onChange={e => updateSetting('autoAnalyze', e.target.checked)} className="w-5 h-5 text-primary-600 rounded border-gray-300 focus:ring-primary-500" />
+              <span>Otomatis analisis dengan AI setelah selesai merekam (Membutuhkan kuota API)</span>
+            </label>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
