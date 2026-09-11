@@ -676,7 +676,6 @@
       });
     }
 
-    // Helper: Konversi Berkas Audio Menjadi String Base64 Murni (Tanpa Header Data URL)
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -694,7 +693,6 @@
       });
     }
 
-    // Tab Navigation
     window.switchTab = function(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -718,7 +716,6 @@
       item.addEventListener('click', () => switchTab(item.getAttribute('data-tab')));
     });
 
-    // Perekam Suara & Web Speech API
     let isRecording = false;
     let recognition = null;
     let mediaRecorder = null;
@@ -838,7 +835,6 @@
       }
     }
 
-    // Render Data (File Saya & Dashboard)
     async function renderRecords() {
       const records = await getRecordings();
       document.getElementById('stat-total').textContent = records.length;
@@ -964,7 +960,7 @@
     }
 
     // ==========================================
-    // FITUR CERDAS: TRANSKRIPSI & ANALISIS BERKAS AUDIO LANGSUNG (FIXED BASE64)
+    // FITUR TRANSKRIPSI & ANALISIS AUDIO (DIPERBAIKI DENGAN .at(1))
     // ==========================================
     const fileInput = document.getElementById('file-input');
     const uploadStatusCard = document.getElementById('upload-status-card');
@@ -1010,10 +1006,8 @@
       uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Membaca dan mengonversi berkas audio...';
 
       try {
-        // Konversi berkas audio ke Base64 murni (String)
         const audioBase64 = await fileToBase64(selectedUploadFile);
         
-        // Deteksi MIME Type yang aman
         let mimeType = selectedUploadFile.type;
         if (!mimeType) {
           const ext = selectedUploadFile.name.split('.').pop().toLowerCase();
@@ -1103,7 +1097,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         uploadProgressFill.style.width = '85%';
         uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan hasil transkrip & notula ke database...';
 
-        // Ekstraksi teks hasil transkripsi dan analisis
+        // Parsing hasil transkripsi secara aman dengan .at(1)
         let parsedTranscript = '(Transkrip tidak dapat diekstraksi)';
         let parsedSummary = '';
         let parsedMindmap = '# RekanSuara Mindmap\n## Topik Rekaman';
@@ -1111,9 +1105,9 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         if (resultText.includes('### TRANSKRIP LENGKAP')) {
           const transParts = resultText.split('### TRANSKRIP LENGKAP');
           if (transParts.length > 1) {
-            const afterTrans = transParts;
+            const afterTrans = transParts.at(1) || '';
             if (afterTrans.includes('### RINGKASAN EKSEKUTIF')) {
-              parsedTranscript = afterTrans.split('### RINGKASAN EKSEKUTIF')[0].trim();
+              parsedTranscript = (afterTrans.split('### RINGKASAN EKSEKUTIF').at(0) || '').trim();
             } else {
               parsedTranscript = afterTrans.trim();
             }
@@ -1123,9 +1117,9 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         if (resultText.includes('### RINGKASAN EKSEKUTIF')) {
           const summParts = resultText.split('### RINGKASAN EKSEKUTIF');
           if (summParts.length > 1) {
-            const afterSumm = summParts;
+            const afterSumm = summParts.at(1) || '';
             if (afterSumm.includes('### MIND MAP')) {
-              parsedSummary = '### RINGKASAN EKSEKUTIF\n' + afterSumm.split('### MIND MAP')[0].trim();
+              parsedSummary = '### RINGKASAN EKSEKUTIF\n' + (afterSumm.split('### MIND MAP').at(0) || '').trim();
             } else {
               parsedSummary = '### RINGKASAN EKSEKUTIF\n' + afterSumm.trim();
             }
@@ -1137,7 +1131,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         if (resultText.includes('### MIND MAP')) {
           const mapParts = resultText.split('### MIND MAP');
           if (mapParts.length > 1) {
-            parsedMindmap = mapParts.trim();
+            parsedMindmap = (mapParts.at(1) || '').trim();
           }
         }
 
@@ -1174,7 +1168,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
       }
     };
 
-    // Analisis Transkrip Suara Langsung
+    // Analisis Transkrip Suara Langsung (juga menggunakan .at(1) yang aman)
     window.runAIAnalysis = async function() {
       if (!currentActiveRecord) return;
       const transcript = document.getElementById('modal-transcript-text').value.trim();
@@ -1249,7 +1243,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         if (resultText.includes('### MIND MAP')) {
           const parts = resultText.split('### MIND MAP');
           if (parts.length > 1) {
-            mindmapMd = parts.trim();
+            mindmapMd = (parts.at(1) || '').trim();
           }
         }
 
