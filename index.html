@@ -244,6 +244,7 @@
     .form-control { width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); padding: 12px 16px; border-radius: 8px; color: #fff; font-size: 0.95rem; }
     .form-control:focus { outline: none; border-color: var(--accent-blue); }
 
+    /* Modal Styles */
     .modal-backdrop {
       display: none;
       position: fixed;
@@ -261,8 +262,8 @@
       border: 1px solid var(--border-color);
       border-radius: 16px;
       width: 100%;
-      max-width: 850px;
-      max-height: 90vh;
+      max-width: 900px;
+      max-height: 92vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -276,16 +277,17 @@
       align-items: center;
     }
     .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
-    .modal-tabs { display: flex; gap: 12px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+    .modal-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; overflow-x: auto; }
     .modal-tab-btn {
       background: none;
       border: none;
       color: var(--text-muted);
-      padding: 10px 16px;
+      padding: 10px 14px;
       font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
       border-bottom: 2px solid transparent;
+      white-space: nowrap;
     }
     .modal-tab-btn.active { color: var(--accent-blue); border-color: var(--accent-blue); }
     .modal-footer {
@@ -300,6 +302,37 @@
     }
     .markmap-container { width: 100%; height: 380px; background: rgba(0, 0, 0, 0.25); border-radius: 8px; overflow: hidden; }
     .markmap-container svg { width: 100%; height: 100%; }
+
+    /* Q&A Chat UI */
+    .chat-history {
+      max-height: 280px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-right: 4px;
+    }
+    .chat-bubble {
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      max-width: 85%;
+    }
+    .chat-bubble.user {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      align-self: flex-end;
+      color: #fff;
+    }
+    .chat-bubble.ai {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-color);
+      align-self: flex-start;
+      color: var(--text-main);
+      white-space: pre-wrap;
+    }
 
     .bottom-nav { display: none; }
 
@@ -377,7 +410,7 @@
       <div class="page-header"><h1>Dashboard</h1></div>
       <div class="welcome-banner">
         <h2>Selamat Datang di RekanSuara AI</h2>
-        <p>Rekam rapat atau kuliah, biarkan sistem transkripsi lokal mengubahnya menjadi teks, dan AI akan merangkum serta memvisualisasikannya menjadi Mind Map secara otomatis.</p>
+        <p>Rekam rapat, sidang, atau kuliah. Sistem transkripsi lokal mengubahnya menjadi teks, dan AI menyusun notula terstruktur serta Mind Map secara otomatis.</p>
         <button class="btn-action" onclick="switchTab('record')">
           <i class="fa-solid fa-microphone"></i> Mulai Rekaman
         </button>
@@ -442,7 +475,6 @@
           </button>
         </div>
 
-        <!-- Info Berkas & Tombol Proses -->
         <div id="upload-status-card" style="display: none; margin-top: 24px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -457,7 +489,6 @@
             </button>
           </div>
 
-          <!-- Progress Bar & Status -->
           <div id="upload-progress-box" style="display: none; margin-top: 16px;">
             <div class="progress-bar-container">
               <div class="progress-bar-fill" id="upload-progress-fill"></div>
@@ -470,9 +501,14 @@
       </div>
     </section>
 
-    <!-- TAB 4: FILE SAYA -->
+    <!-- TAB 4: FILE SAYA (DENGAN SEARCH BAR) -->
     <section id="files" class="tab-content">
-      <div class="page-header"><h1>File Saya</h1></div>
+      <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <h1>File Saya</h1>
+        <div style="max-width: 300px; width: 100%;">
+          <input type="text" id="search-input" class="form-control" placeholder="🔍 Cari judul atau kata kunci..." oninput="filterRecords(this.value)">
+        </div>
+      </div>
       <div class="card">
         <div class="table-container">
           <table>
@@ -501,7 +537,7 @@
         <div class="form-group">
           <label>Provider AI</label>
           <select id="ai-provider" class="form-control">
-            <option value="gemini">Google Gemini (Disarankan - Mendukung Transkripsi Audio)</option>
+            <option value="gemini">Google Gemini (Disarankan - Ada Free Tier)</option>
             <option value="openai">OpenAI (ChatGPT)</option>
           </select>
         </div>
@@ -509,7 +545,7 @@
           <label>Model Gemini Utama</label>
           <input type="text" id="ai-model" class="form-control" value="gemini-3.6-flash" placeholder="gemini-3.6-flash">
           <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">
-            Didukung fitur <b>Smart Fallback</b> otomatis ke model cadangan seperti <b>gemini-3.6-flash-lite</b> jika server sedang sibuk.
+            Didukung fitur <b>Smart Fallback</b> otomatis: jika model utama sibuk, sistem otomatis mencoba model cadangan seperti <b>gemini-3.6-flash-lite</b>.
           </small>
         </div>
         <div class="form-group">
@@ -531,7 +567,7 @@
 
   </main>
 
-  <!-- Modal Detail Rekaman & Analisis AI -->
+  <!-- Modal Detail Rekaman, AI, Q&A & Ekspor -->
   <div id="modal-detail" class="modal-backdrop">
     <div class="modal-card">
       <div class="modal-header">
@@ -551,33 +587,63 @@
           <button class="modal-tab-btn active" onclick="switchModalTab('transcript')">📝 Transkrip</button>
           <button class="modal-tab-btn" onclick="switchModalTab('ai')">🤖 Analisis AI & Notula</button>
           <button class="modal-tab-btn" onclick="switchModalTab('mindmap')">🧠 Mind Map</button>
+          <button class="modal-tab-btn" onclick="switchModalTab('chat')">💬 Tanya AI</button>
         </div>
 
+        <!-- Tab 1: Transkrip -->
         <div id="tab-modal-transcript">
           <textarea id="modal-transcript-text" class="form-control" style="min-height: 280px; font-size: 0.95rem; line-height: 1.6; resize: vertical;"></textarea>
         </div>
 
+        <!-- Tab 2: Analisis AI & Notula -->
         <div id="tab-modal-ai" style="display: none;">
+          <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.85rem; color: var(--text-muted);">Pilih Format Notula:</span>
+              <select id="modal-template-preset" class="form-control" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">
+                <option value="umum">📋 Rapat Umum & Koordinasi Tim</option>
+                <option value="hukum">⚖️ Konsultasi Hukum, BAP & Wawancara</option>
+                <option value="akademik">🎓 Kuliah & Seminar Akademik</option>
+              </select>
+            </div>
+            <button id="btn-run-ai" class="btn-action" style="background: var(--accent-indigo); color: #fff; padding: 8px 16px;" onclick="runAIAnalysis()">
+              <i class="fa-solid fa-rotate"></i> Analisis Ulang
+            </button>
+          </div>
           <div id="ai-loading" style="display: none; text-align: center; padding: 40px;">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--accent-blue);"></i>
-            <p id="ai-status-text" style="margin-top: 12px; color: var(--text-muted); font-size: 0.9rem;">Menganalisis audio dan menyusun notula...</p>
+            <p id="ai-status-text" style="margin-top: 12px; color: var(--text-muted); font-size: 0.9rem;">Menyusun notula dan peta pikiran...</p>
           </div>
           <div id="ai-content-box" style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
-            Belum ada hasil analisis AI. Klik tombol 'Analisis AI' di bawah.
+            Belum ada hasil analisis AI. Klik tombol 'Analisis AI' untuk memproses.
           </div>
         </div>
 
+        <!-- Tab 3: Mind Map -->
         <div id="tab-modal-mindmap" style="display: none;">
           <div class="markmap-container" id="mindmap-container">
             <svg id="markmap-svg"></svg>
           </div>
         </div>
+
+        <!-- Tab 4: Tanya AI (Q&A Interaktif Berkas) -->
+        <div id="tab-modal-chat" style="display: none;">
+          <div class="chat-history" id="chat-history-box">
+            <div class="chat-bubble ai">Halo! Saya asisten RekanSuara. Ajukan pertanyaan apa saja mengenai isi rekaman ini (misalnya: nama pihak, kesepakatan, angka, atau tanggal penting).</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="chat-input" class="form-control" placeholder="Tanyakan isi rekaman ini..." onkeydown="if(event.key==='Enter') sendChatMessage()">
+            <button class="btn-action" style="background: var(--accent-blue); color: #0b1120;" onclick="sendChatMessage()">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="modal-footer">
-        <div style="display: flex; gap: 8px;">
-          <button id="btn-run-ai" class="btn-action" style="background: var(--accent-indigo); color: #fff;" onclick="runAIAnalysis()">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Analisis AI
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn-action" style="background: rgba(255,255,255,0.08); color: #fff;" onclick="exportToWord()">
+            <i class="fa-solid fa-file-word" style="color: #38bdf8;"></i> Unduh Word (.doc)
           </button>
           <button class="btn-action" style="background: rgba(255,255,255,0.08); color: #fff;" onclick="exportToPDF()">
             <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> Unduh PDF
@@ -618,6 +684,7 @@
     const DB_VERSION = 1;
     let currentActiveRecord = null;
     let selectedUploadFile = null;
+    let allStoredRecords = [];
 
     function openDB() {
       return new Promise((resolve, reject) => {
@@ -716,6 +783,7 @@
       item.addEventListener('click', () => switchTab(item.getAttribute('data-tab')));
     });
 
+    // Perekam Suara & Web Speech API
     let isRecording = false;
     let recognition = null;
     let mediaRecorder = null;
@@ -771,7 +839,7 @@
           recognition.onresult = (event) => {
             let txt = '';
             for (let i = 0; i < event.results.length; i++) {
-              txt += event.results[i][0].transcript + ' ';
+              txt += event.results.item(i).item(0).transcript + ' ';
             }
             transcriptBox.textContent = txt;
           };
@@ -828,33 +896,35 @@
       let x = 0;
 
       for (let i = 0; i < bufferLength; i++) {
-        const barHeight = (dataArray[i] / 255) * canvas.height;
+        const barHeight = (dataArray.at(i) / 255) * canvas.height;
         canvasCtx.fillStyle = '#38bdf8';
         canvasCtx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
         x += barWidth;
       }
     }
 
+    // Render Data & Filter Search Bar
     async function renderRecords() {
-      const records = await getRecordings();
-      document.getElementById('stat-total').textContent = records.length;
+      allStoredRecords = await getRecordings();
+      document.getElementById('stat-total').textContent = allStoredRecords.length;
       
-      const analyzedCount = records.filter(r => r.statusAI === 'Selesai').length;
+      const analyzedCount = allStoredRecords.filter(r => r.statusAI === 'Selesai').length;
       document.getElementById('stat-analyzed').textContent = analyzedCount;
 
+      renderTableRows(allStoredRecords);
+      renderRecentList(allStoredRecords);
+    }
+
+    function renderTableRows(records) {
       const tbody = document.getElementById('files-table-body');
       tbody.innerHTML = '';
 
-      const recentList = document.getElementById('recent-list');
-      recentList.innerHTML = '';
-
       if (records.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">Belum ada rekaman.</td></tr>';
-        recentList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.9rem;">Belum ada rekaman tersimpan.</div>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">Belum ada rekaman yang cocok.</td></tr>';
         return;
       }
 
-      records.forEach((rec, idx) => {
+      records.forEach((rec) => {
         const tr = document.createElement('tr');
         const statusBadge = rec.statusAI === 'Selesai' 
           ? '<span style="background: rgba(16,185,129,0.15); color: #10b981; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">Selesai</span>'
@@ -872,22 +942,44 @@
           </td>
         `;
         tbody.appendChild(tr);
-
-        if (idx < 5) {
-          const item = document.createElement('div');
-          item.style = 'background: rgba(255,255,255,0.03); padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); cursor: pointer;';
-          item.onclick = () => openDetailById(rec.id);
-          item.innerHTML = `
-            <div>
-              <div style="font-weight: 500; font-size: 0.9rem; color: #fff;">${rec.title}</div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${rec.date} • ${rec.duration} detik • ${rec.statusAI}</div>
-            </div>
-            <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); font-size: 0.8rem;"></i>
-          `;
-          recentList.appendChild(item);
-        }
       });
     }
+
+    function renderRecentList(records) {
+      const recentList = document.getElementById('recent-list');
+      recentList.innerHTML = '';
+      if (records.length === 0) {
+        recentList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.9rem;">Belum ada rekaman tersimpan.</div>';
+        return;
+      }
+      records.slice(0, 5).forEach((rec) => {
+        const item = document.createElement('div');
+        item.style = 'background: rgba(255,255,255,0.03); padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); cursor: pointer;';
+        item.onclick = () => openDetailById(rec.id);
+        item.innerHTML = `
+          <div>
+            <div style="font-weight: 500; font-size: 0.9rem; color: #fff;">${rec.title}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${rec.date} • ${rec.duration} detik • ${rec.statusAI}</div>
+          </div>
+          <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); font-size: 0.8rem;"></i>
+        `;
+        recentList.appendChild(item);
+      });
+    }
+
+    window.filterRecords = function(keyword) {
+      const term = keyword.toLowerCase().trim();
+      if (!term) {
+        renderTableRows(allStoredRecords);
+        return;
+      }
+      const filtered = allStoredRecords.filter(r => 
+        (r.title && r.title.toLowerCase().includes(term)) || 
+        (r.transcript && r.transcript.toLowerCase().includes(term)) ||
+        (r.summaryAI && r.summaryAI.toLowerCase().includes(term))
+      );
+      renderTableRows(filtered);
+    };
 
     window.openDetailById = async function(id) {
       const records = await getRecordings();
@@ -919,6 +1011,11 @@
         renderMindmap(rec.mindmapMarkdown);
       }
 
+      // Reset Q&A history
+      document.getElementById('chat-history-box').innerHTML = `
+        <div class="chat-bubble ai">Halo! Saya asisten RekanSuara. Ajukan pertanyaan apa saja mengenai isi rekaman ini (misalnya: nama pihak, kesepakatan, angka, atau tanggal penting).</div>
+      `;
+
       switchModalTab('transcript');
       document.getElementById('modal-detail').classList.add('open');
     }
@@ -935,9 +1032,10 @@
       document.getElementById('tab-modal-transcript').style.display = tabName === 'transcript' ? 'block' : 'none';
       document.getElementById('tab-modal-ai').style.display = tabName === 'ai' ? 'block' : 'none';
       document.getElementById('tab-modal-mindmap').style.display = tabName === 'mindmap' ? 'block' : 'none';
+      document.getElementById('tab-modal-chat').style.display = tabName === 'chat' ? 'block' : 'none';
 
-      const btnMap = { transcript: 0, ai: 1, mindmap: 2 };
-      document.querySelectorAll('.modal-tab-btn')[btnMap[tabName]].classList.add('active');
+      const btnMap = { transcript: 0, ai: 1, mindmap: 2, chat: 3 };
+      document.querySelectorAll('.modal-tab-btn').at(btnMap[tabName]).classList.add('active');
 
       if (tabName === 'mindmap' && currentActiveRecord && currentActiveRecord.mindmapMarkdown) {
         renderMindmap(currentActiveRecord.mindmapMarkdown);
@@ -960,7 +1058,68 @@
     }
 
     // ==========================================
-    // FITUR TRANSKRIPSI & ANALISIS AUDIO (DIPERBAIKI DENGAN .at(1))
+    // TANYA AI (Q&A INTERAKTIF DENGAN ISI REKAMAN)
+    // ==========================================
+    window.sendChatMessage = async function() {
+      const inputEl = document.getElementById('chat-input');
+      const userQ = inputEl.value.trim();
+      if (!userQ || !currentActiveRecord) return;
+
+      const chatHistory = document.getElementById('chat-history-box');
+      
+      // Tambah bubble pengguna
+      const userBubble = document.createElement('div');
+      userBubble.className = 'chat-bubble user';
+      userBubble.textContent = userQ;
+      chatHistory.appendChild(userBubble);
+      inputEl.value = '';
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+
+      // Tambah bubble respon AI (loading)
+      const aiBubble = document.createElement('div');
+      aiBubble.className = 'chat-bubble ai';
+      aiBubble.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menemukan jawaban dari rekaman...';
+      chatHistory.appendChild(aiBubble);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+
+      const apiKey = localStorage.getItem('rekansuara_apikey');
+      if (!apiKey) {
+        aiBubble.textContent = 'API Key belum diisi di Pengaturan.';
+        return;
+      }
+
+      const transcript = document.getElementById('modal-transcript-text').value;
+      const promptChat = `Anda adalah asisten cerdas notulensi. Jawab pertanyaan pengguna HANYA berdasarkan transkrip berikut secara objektif dan akurat. Jika tidak ada di transkrip, jawab dengan jujur.\n\nTRANSKRIP:\n"""\n${transcript}\n"""\n\nPERTANYAAN: ${userQ}`;
+
+      const candidateModels = [
+        localStorage.getItem('rekansuara_model') || 'gemini-3.6-flash',
+        'gemini-3.6-flash-lite',
+        'gemini-2.5-flash-lite',
+        'gemini-2.0-flash'
+      ];
+
+      let reply = '';
+      for (const mName of candidateModels) {
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mName}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: promptChat }] }] })
+          });
+          const data = await res.json();
+          if (res.ok && data.candidates?.at(0)?.content?.parts?.at(0)?.text) {
+            reply = data.candidates.at(0).content.parts.at(0).text;
+            break;
+          }
+        } catch(e) {}
+      }
+
+      aiBubble.textContent = reply || 'Maaf, gagal mendapatkan jawaban dari server AI saat ini.';
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+    };
+
+    // ==========================================
+    // UPLOAD & TRANSKRIPSI CERDAS MULTIMODAL
     // ==========================================
     const fileInput = document.getElementById('file-input');
     const uploadStatusCard = document.getElementById('upload-status-card');
@@ -972,7 +1131,7 @@
     const btnProcessAudio = document.getElementById('btn-process-audio');
 
     fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
+      const file = e.target.files.item(0);
       if (file) handleSelectedFile(file);
     });
 
@@ -990,20 +1149,20 @@
 
       const apiKey = localStorage.getItem('rekansuara_apikey');
       if (!apiKey) {
-        alert('API Key belum diisi. Silakan masukkan API Key Gemini Anda di menu Pengaturan.');
+        alert('API Key belum diisi di Pengaturan.');
         switchTab('settings');
         return;
       }
 
       if (selectedUploadFile.size > 25 * 1024 * 1024) {
-        alert('Ukuran berkas melebihi 25MB. Silakan gunakan berkas audio di bawah 25MB.');
+        alert('Ukuran berkas melebihi 25MB. Silakan gunakan berkas di bawah 25MB.');
         return;
       }
 
       btnProcessAudio.disabled = true;
       uploadProgressBox.style.display = 'block';
       uploadProgressFill.style.width = '20%';
-      uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Membaca dan mengonversi berkas audio...';
+      uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Membaca berkas audio...';
 
       try {
         const audioBase64 = await fileToBase64(selectedUploadFile);
@@ -1021,7 +1180,7 @@
         }
 
         uploadProgressFill.style.width = '45%';
-        uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Mentranskripsi & menganalisis notula dengan Gemini...';
+        uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Mentranskripsi suara & menyusun notula...';
 
         const promptAudio = `Dengarkan rekaman audio ini dengan sangat teliti.
 Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan format terstruktur persis berikut:
@@ -1030,7 +1189,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
 (Tuliskan seluruh isi percakapan secara akurat kata demi kata dari rekaman ini)
 
 ### RINGKASAN EKSEKUTIF
-(Tuliskan rangkuman inti rapat/pembicaraan dalam 2-3 paragraf padat)
+(Tuliskan rangkuman inti pembicaraan dalam 2-3 paragraf padat)
 
 ### KEPUTUSAN & TINDAK LANJUT (ACTION ITEMS)
 (Tuliskan poin-poin keputusan dan daftar tugas yang harus dijalankan)
@@ -1045,23 +1204,19 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
 - Poin C
 )`;
 
-        const userSelectedModel = localStorage.getItem('rekansuara_model') || 'gemini-3.6-flash';
         const candidateModels = [
-          userSelectedModel,
+          localStorage.getItem('rekansuara_model') || 'gemini-3.6-flash',
           'gemini-3.6-flash-lite',
           'gemini-2.5-flash-lite',
-          'gemini-2.0-flash',
-          'gemini-flash-latest'
+          'gemini-2.0-flash'
         ];
-        const modelsToTry = [...new Set(candidateModels)];
 
         let resultText = '';
         let lastError = null;
 
-        for (const mName of modelsToTry) {
+        for (const mName of candidateModels) {
           try {
             uploadProgressText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Memproses dengan model ${mName}...`;
-            
             const payload = {
               contents: [{
                 parts: [
@@ -1078,26 +1233,23 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
             });
 
             const data = await res.json();
-            if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-              resultText = data.candidates[0].content.parts[0].text;
+            if (res.ok && data.candidates?.at(0)?.content?.parts?.at(0)?.text) {
+              resultText = data.candidates.at(0).content.parts.at(0).text;
               lastError = null;
               break;
             } else {
-              lastError = new Error(data.error?.message || `Model ${mName} gagal`);
+              lastError = new Error(data.error?.message || `Model ${mName} sibuk`);
             }
           } catch(err) {
             lastError = err;
           }
         }
 
-        if (!resultText) {
-          throw lastError || new Error('Gagal memproses berkas audio. Coba beberapa saat lagi.');
-        }
+        if (!resultText) throw lastError || new Error('Gagal memproses berkas audio.');
 
         uploadProgressFill.style.width = '85%';
         uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan hasil transkrip & notula ke database...';
 
-        // Parsing hasil transkripsi secara aman dengan .at(1)
         let parsedTranscript = '(Transkrip tidak dapat diekstraksi)';
         let parsedSummary = '';
         let parsedMindmap = '# RekanSuara Mindmap\n## Topik Rekaman';
@@ -1150,7 +1302,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         newRecord.id = newId;
 
         uploadProgressFill.style.width = '100%';
-        uploadProgressText.innerHTML = '<i class="fa-solid fa-check" style="color: var(--success);"></i> Berhasil ditranskripsi dan dianalisis!';
+        uploadProgressText.innerHTML = '<i class="fa-solid fa-check" style="color: var(--success);"></i> Berhasil ditranskripsi!';
 
         setTimeout(() => {
           uploadStatusCard.style.display = 'none';
@@ -1168,76 +1320,73 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
       }
     };
 
-    // Analisis Transkrip Suara Langsung (juga menggunakan .at(1) yang aman)
+    // ==========================================
+    // ANALISIS NOTULA SESUAI TEMPLATE PRESET
+    // ==========================================
     window.runAIAnalysis = async function() {
       if (!currentActiveRecord) return;
       const transcript = document.getElementById('modal-transcript-text').value.trim();
       if (!transcript || transcript.startsWith('(Tidak ada')) {
-        alert('Transkrip masih kosong. Rekam suara terlebih dahulu.');
+        alert('Transkrip masih kosong.');
         return;
       }
 
       const apiKey = localStorage.getItem('rekansuara_apikey');
       if (!apiKey) {
-        alert('API Key belum diisi. Silakan isi di menu Pengaturan.');
+        alert('API Key belum diisi di Pengaturan.');
         switchTab('settings');
         closeModal();
         return;
       }
 
-      const provider = localStorage.getItem('rekansuara_provider') || 'gemini';
-      const prompt = `Anda adalah asisten notulensi profesional. Analisis transkrip berikut:\n\n"""\n${transcript}\n"""\n\nBerikan output terstruktur dalam bahasa Indonesia dengan format persis berikut:\n\n### RINGKASAN EKSEKUTIF\n(Tuliskan ringkasan inti pembicaraan dalam 2-3 paragraf padat)\n\n### KEPUTUSAN & TINDAK LANJUT (ACTION ITEMS)\n(Buat daftar tugas penting, penanggung jawab, dan langkah berikutnya)\n\n### MIND MAP\n(Buat struktur peta pikiran dalam format markdown list bertingkat yang rapi:\n# Topik Utama\n## Sub Topik 1\n- Poin A\n- Poin B\n## Sub Topik 2\n- Poin C\n)`;
+      const preset = document.getElementById('modal-template-preset')?.value || 'umum';
+      let promptFormat = '';
+
+      if (preset === 'hukum') {
+        promptFormat = `Anda adalah asisten notulensi & analisis hukum profesional. Analisis transkrip berikut:\n\n"""\n${transcript}\n"""\n\nHasilkan output terstruktur dalam bahasa Indonesia dengan format persis berikut:\n\n### KRONOLOGI FAKTA & PERISTIWA\n(Uraikan kronologi kejadian secara runtut berdasarkan fakta yang disebutkan)\n\n### POKOK KETERANGAN PARA PIHAK\n(Poin-poin pernyataan kunci dari masing-masing pembicara/pihak)\n\n### IDENTIFIKASI ISU HUKUM & BUKTI\n(Isu krusial dan dokumen/bukti yang perlu disiapkan/dikonfirmasi)\n\n### MIND MAP\n(Struktur peta pikiran dalam format markdown list bertingkat:\n# Topik Kasus\n## Fakta Utama\n- Poin 1\n## Langkah Hukum\n- Poin 2\n)`;
+      } else if (preset === 'akademik') {
+        promptFormat = `Anda adalah asisten akademis profesional. Analisis transkrip perkuliahan/seminar berikut:\n\n"""\n${transcript}\n"""\n\nHasilkan output terstruktur dalam bahasa Indonesia:\n\n### RINGKASAN MATERI\n(Ringkasan 2-3 paragraf materi pembahasan)\n\n### KONSEP & TEORI KUNCI\n(Daftar konsep penting dan definisinya)\n\n### KESIMPULAN & TUGAS/EVALUASI\n(Poin kesimpulan utama dan hal yang perlu dipelajari lebih lanjut)\n\n### MIND MAP\n(Format markdown list bertingkat:\n# Materi Kuliah\n## Pokok Bahasan\n- Poin\n)`;
+      } else {
+        promptFormat = `Anda adalah asisten notulensi rapat profesional. Analisis transkrip berikut:\n\n"""\n${transcript}\n"""\n\nHasilkan output terstruktur:\n\n### RINGKASAN EKSEKUTIF\n(Ringkasan inti pembicaraan dalam 2-3 paragraf padat)\n\n### KEPUTUSAN & TINDAK LANJUT (ACTION ITEMS)\n(Daftar tugas penting, penanggung jawab, dan langkah berikutnya)\n\n### MIND MAP\n(Struktur peta pikiran dalam format markdown list bertingkat:\n# Topik Utama\n## Sub Topik 1\n- Poin A\n## Sub Topik 2\n- Poin B\n)`;
+      }
 
       switchModalTab('ai');
       document.getElementById('ai-loading').style.display = 'block';
       document.getElementById('ai-content-box').style.display = 'none';
 
       try {
+        const candidateModels = [
+          localStorage.getItem('rekansuara_model') || 'gemini-3.6-flash',
+          'gemini-3.6-flash-lite',
+          'gemini-2.5-flash-lite',
+          'gemini-2.0-flash'
+        ];
+
         let resultText = '';
-        if (provider === 'gemini') {
-          const userSelectedModel = localStorage.getItem('rekansuara_model') || 'gemini-3.6-flash';
-          const candidateModels = [
-            userSelectedModel,
-            'gemini-3.6-flash-lite',
-            'gemini-2.5-flash-lite',
-            'gemini-2.0-flash',
-            'gemini-flash-latest'
-          ];
-          const modelsToTry = [...new Set(candidateModels)];
+        let lastError = null;
 
-          let lastError = null;
-          for (const mName of modelsToTry) {
-            try {
-              document.getElementById('ai-status-text').textContent = `Menganalisis dengan ${mName}...`;
-              const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mName}:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-              });
-              const data = await res.json();
-              if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                resultText = data.candidates[0].content.parts[0].text;
-                lastError = null;
-                break;
-              } else {
-                lastError = new Error(data.error?.message || `Gagal pada model ${mName}`);
-              }
-            } catch (fetchErr) {
-              lastError = fetchErr;
+        for (const mName of candidateModels) {
+          try {
+            document.getElementById('ai-status-text').textContent = `Menganalisis format ${preset} dengan ${mName}...`;
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mName}:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contents: [{ parts: [{ text: promptFormat }] }] })
+            });
+            const data = await res.json();
+            if (res.ok && data.candidates?.at(0)?.content?.parts?.at(0)?.text) {
+              resultText = data.candidates.at(0).content.parts.at(0).text;
+              lastError = null;
+              break;
+            } else {
+              lastError = new Error(data.error?.message || `Gagal pada ${mName}`);
             }
+          } catch(e) {
+            lastError = e;
           }
-
-          if (!resultText) throw lastError || new Error('Semua cluster model sedang sibuk.');
-        } else {
-          const res = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }] })
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error?.message || 'Gagal menghubungi OpenAI API');
-          resultText = data.choices[0].message.content;
         }
+
+        if (!resultText) throw lastError || new Error('Semua model sedang sibuk.');
 
         let mindmapMd = '# RekanSuara Mindmap\n## Topik Rapat';
         if (resultText.includes('### MIND MAP')) {
@@ -1263,6 +1412,54 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
       }
     };
 
+    // ==========================================
+    // EKSPOR WORD (.DOC), PDF, DAN TEKS
+    // ==========================================
+    window.exportToWord = function() {
+      if (!currentActiveRecord) return;
+      const transcript = document.getElementById('modal-transcript-text').value;
+      const aiSummary = currentActiveRecord.summaryAI || 'Belum dianalisis oleh AI.';
+
+      const docContent = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head><meta charset='utf-8'><title>${currentActiveRecord.title}</title>
+        <style>
+          body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1e293b; padding: 20px; }
+          h1 { font-size: 18pt; color: #0f172a; border-bottom: 2px solid #38bdf8; padding-bottom: 6px; }
+          h2 { font-size: 13pt; color: #1e3a8a; margin-top: 18px; }
+          .meta { font-size: 9pt; color: #64748b; margin-bottom: 20px; }
+          .box { background: #f8fafc; border-left: 4px solid #38bdf8; padding: 12px 16px; margin-bottom: 16px; }
+          pre { white-space: pre-wrap; font-family: inherit; }
+        </style>
+        </head>
+        <body>
+          <h1>NOTULA & ANALISIS PERTEMUAN</h1>
+          <div class="meta">
+            <b>Judul:</b> ${currentActiveRecord.title}<br>
+            <b>Tanggal:</b> ${currentActiveRecord.date} | <b>Durasi:</b> ${currentActiveRecord.duration} detik<br>
+            <b>Diproduksi oleh:</b> RekanSuara AI (Local-First Architecture)
+          </div>
+          
+          <h2>I. HASIL ANALISIS & NOTULA (AI)</h2>
+          <div class="box">
+            <pre>${aiSummary}</pre>
+          </div>
+
+          <h2>II. TRANSKRIP LENGKAP</h2>
+          <div class="box">
+            <pre>${transcript}</pre>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob(['\ufeff', docContent], { type: 'application/msword;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${currentActiveRecord.title.replace(/[/\\?%*:|"<>]/g, '-')}.doc`;
+      a.click();
+    };
+
     window.exportToPDF = function() {
       if (!currentActiveRecord) return;
       const { jsPDF } = window.jspdf;
@@ -1281,7 +1478,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
       let yPos = 46;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
-      doc.text('RINGKASAN & KEPUTUSAN (AI):', 14, yPos);
+      doc.text('HASIL ANALISIS & NOTULA (AI):', 14, yPos);
       yPos += 8;
 
       doc.setFont('helvetica', 'normal');
