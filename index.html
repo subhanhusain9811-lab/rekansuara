@@ -590,8 +590,18 @@
           <button class="modal-tab-btn" data-tab="chat" onclick="switchModalTab('chat')">💬 Tanya AI</button>
         </div>
 
-        <!-- Tab 1: Transkrip -->
+        <!-- Tab 1: Transkrip (Dengan Fitur Transkrib Ulang) -->
         <div id="tab-modal-transcript">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Teks transkrip dapat diedit langsung atau didengarkan ulang:</span>
+            <button id="btn-retranscribe" class="btn-action" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 6px 14px; font-size: 0.85rem;" onclick="retranscribeAudio()">
+              <i class="fa-solid fa-arrows-rotate"></i> Transkrib Ulang dari Audio
+            </button>
+          </div>
+          <div id="retranscribe-loading" style="display: none; text-align: center; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 12px;">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 1.6rem; color: var(--accent-blue);"></i>
+            <p style="margin-top: 8px; font-size: 0.85rem; color: var(--accent-blue);">Sedang mendengarkan & mentranskripsi ulang rekaman suara...</p>
+          </div>
           <textarea id="modal-transcript-text" class="form-control" style="min-height: 280px; font-size: 0.95rem; line-height: 1.6; resize: vertical;"></textarea>
         </div>
 
@@ -761,7 +771,7 @@
       });
     }
 
-    // REGEX PARSER: 100% Tangguh Mengekstraksi String Murni Tanpa Risiko TypeError
+    // REGEX ENGINE: 100% Tangguh & Bebas TypeError
     function parseAIOutput(resultText) {
       let parsedTranscript = '';
       let parsedSummary = '';
@@ -1094,7 +1104,99 @@
     }
 
     // ==========================================
-    // TANYA AI (Q&A INTERAKTIF DENGAN ISI REKAMAN)
+    // FITUR BARU: TRANSKRIB ULANG DARI AUDIO TERSIMPAN
+    // ==========================================
+    window.retranscribeAudio = async function() {
+      if (!currentActiveRecord) return;
+      if (!currentActiveRecord.audioBlob) {
+        alert('Berkas audio tidak tersedia pada rekaman ini.');
+        return;
+      }
+
+      const apiKey = localStorage.getItem('rekansuara_apikey');
+      if (!apiKey) {
+        alert('API Key belum diisi di Pengaturan.');
+        switchTab('settings');
+        closeModal();
+        return;
+      }
+
+      const loadingEl = document.getElementById('retranscribe-loading');
+      const textareaEl = document.getElementById('modal-transcript-text');
+      const btnEl = document.getElementById('btn-retranscribe');
+
+      loadingEl.style.display = 'block';
+      btnEl.disabled = true;
+
+      try {
+        const audioBase64 = await fileToBase64(currentActiveRecord.audioBlob);
+        let mimeType = currentActiveRecord.audioBlob.type || 'audio/webm';
+        if (!mimeType) mimeType = 'audio/webm';
+
+        const promptAudio = `Dengarkan rekaman audio ini dengan sangat teliti.
+Tolong transkripsikan seluruh isi percakapan secara akurat kata demi kata dalam bahasa Indonesia.
+Hasilkan HANYA teks transkripsi percakapan lengkap tanpa teks pengantar atau penutup.`;
+
+        const candidateModels = [
+          localStorage.getItem('rekansuara_model') || 'gemini-3.6-flash',
+          'gemini-3.6-flash-lite',
+          'gemini-2.5-flash-lite',
+          'gemini-2.0-flash'
+        ];
+
+        let newTranscript = '';
+        for (const mName of candidateModels) {
+          try {
+            const payload = {
+              contents: [{
+                parts: [
+                  { text: promptAudio },
+                  { inlineData: { mimeType: mimeType, data: String(audioBase64) } }
+                ]
+              }]
+            };
+
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mName}:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (res.ok && data.candidates && data.candidates.length > 0) {
+              for (const cand of data.candidates) {
+                if (cand.content && cand.content.parts) {
+                  for (const p of cand.content.parts) {
+                    if (p.text) { newTranscript = p.text.trim(); break; }
+                  }
+                }
+                if (newTranscript) break;
+              }
+              if (newTranscript) break;
+            }
+          } catch(e) {}
+        }
+
+        if (!newTranscript) {
+          throw new Error('Gagal mentranskripsi ulang audio. Coba beberapa saat lagi.');
+        }
+
+        textareaEl.value = newTranscript;
+        currentActiveRecord.transcript = newTranscript;
+        await updateRecording(currentActiveRecord);
+        renderRecords();
+
+        alert('Transkripsi ulang berhasil diperbarui dari rekaman audio!');
+      } catch(err) {
+        alert('Gagal transkripsi ulang: ' + err.message);
+      } finally {
+        loadingEl.style.display = 'none';
+        btnEl.disabled = false;
+      }
+    };
+
+    // ==========================================
+    // TANYA AI (Q&A INTERAKTIF BERDASARKAN TRANSKRIP)
     // ==========================================
     window.sendChatMessage = async function() {
       const inputEl = document.getElementById('chat-input');
