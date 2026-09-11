@@ -450,7 +450,7 @@
           <label>Model Gemini</label>
           <input type="text" id="ai-model" class="form-control" value="gemini-3.6-flash" placeholder="gemini-3.6-flash">
           <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">
-            Default: <b>gemini-3.6-flash</b>. Anda dapat menggantinya kapan saja sesuai rilis terbaru Google.
+            Default: <b>gemini-3.6-flash</b>.
           </small>
         </div>
         <div class="form-group">
@@ -501,7 +501,7 @@
         <div id="tab-modal-ai" style="display: none;">
           <div id="ai-loading" style="display: none; text-align: center; padding: 40px;">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--accent-blue);"></i>
-            <p id="ai-status-text" style="margin-top: 12px; color: var(--text-muted); font-size: 0.9rem;">Menghubungi Gemini 3.6 Flash...</p>
+            <p id="ai-status-text" style="margin-top: 12px; color: var(--text-muted); font-size: 0.9rem;">Sedang menyusun ringkasan dan notula...</p>
           </div>
           <div id="ai-content-box" style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
             Belum ada hasil analisis AI. Klik tombol 'Analisis AI' di bawah.
@@ -874,14 +874,18 @@
       const svg = document.getElementById('markmap-svg');
       svg.innerHTML = '';
       if (window.markmap && window.markmap.Markmap) {
-        const { Transformer } = window.markmap;
-        const transformer = new Transformer();
-        const { root } = transformer.transform(markdownText || '# RekanSuara');
-        window.markmap.Markmap.create(svg, null, root);
+        try {
+          const { Transformer } = window.markmap;
+          const transformer = new Transformer();
+          const { root } = transformer.transform(markdownText || '# RekanSuara');
+          window.markmap.Markmap.create(svg, null, root);
+        } catch(e) {
+          console.warn('Gagal memuat peta pikiran:', e);
+        }
       }
     }
 
-    // AI Pipeline Menggunakan Gemini 3.6 Flash
+    // AI Pipeline Menggunakan Gemini 3.6 Flash (Fixed parsing index)
     window.runAIAnalysis = async function() {
       if (!currentActiveRecord) return;
       const transcript = document.getElementById('modal-transcript-text').value.trim();
@@ -929,9 +933,13 @@
           resultText = data.choices[0].message.content;
         }
 
+        // Ekstraksi Mind Map dengan penanganan index yang aman
         let mindmapMd = '# RekanSuara Mindmap\n## Topik Rapat';
         if (resultText.includes('### MIND MAP')) {
-          mindmapMd = resultText.split('### MIND MAP').trim();
+          const parts = resultText.split('### MIND MAP');
+          if (parts.length > 1) {
+            mindmapMd = parts.trim();
+          }
         }
 
         currentActiveRecord.statusAI = 'Selesai';
