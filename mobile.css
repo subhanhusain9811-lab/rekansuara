@@ -1,0 +1,98 @@
+/* mobile.css */
+
+/* Penyesuaian Default Desktop */
+.bottom-nav {
+  display: none;
+}
+
+/* Penyesuaian untuk Layar Ponsel (< 768px) */
+@media (max-width: 768px) {
+  /* 1. Sembunyikan Sidebar Desktop & Tambahkan Ruang Bawah */
+  .sidebar {
+    display: none !important;
+  }
+  main.main-content {
+    margin-left: 0 !important;
+    padding: 16px 16px 80px 16px !important; /* ruang ekstra untuk bottom-bar */
+    width: 100% !important;
+  }
+
+  /* 2. Bottom Navigation Bar */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: #0f172a;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    justify-content: space-around;
+    align-items: center;
+    z-index: 999;
+    backdrop-filter: blur(10px);
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 11px;
+    text-decoration: none;
+    gap: 4px;
+    flex: 1;
+    height: 100%;
+  }
+
+  .bottom-nav-item.active {
+    color: #38bdf8;
+  }
+
+  /* 3. Transformasi Tabel "File Saya" Menjadi Card View di HP */
+  .table-container table,
+  .table-container thead,
+  .table-container tbody,
+  .table-container th,
+  .table-container td,
+  .table-container tr {
+    display: block;
+  }
+
+  .table-container thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+
+  .table-container tr {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .table-container td {
+    border: none;
+    padding: 6px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .table-container td:before {
+    content: attr(data-label);
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+
+  /* 4. Optimasi Tombol Mikrofon di Layar Sentuh */
+  .record-btn-container button {
+    width: 80px;
+    height: 80px;
+    font-size: 28px;
+  }
+}
