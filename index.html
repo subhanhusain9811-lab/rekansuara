@@ -584,10 +584,10 @@
 
       <div class="modal-body">
         <div class="modal-tabs">
-          <button class="modal-tab-btn active" onclick="switchModalTab('transcript')">📝 Transkrip</button>
-          <button class="modal-tab-btn" onclick="switchModalTab('ai')">🤖 Analisis AI & Notula</button>
-          <button class="modal-tab-btn" onclick="switchModalTab('mindmap')">🧠 Mind Map</button>
-          <button class="modal-tab-btn" onclick="switchModalTab('chat')">💬 Tanya AI</button>
+          <button class="modal-tab-btn active" data-tab="transcript" onclick="switchModalTab('transcript')">📝 Transkrip</button>
+          <button class="modal-tab-btn" data-tab="ai" onclick="switchModalTab('ai')">🤖 Analisis AI & Notula</button>
+          <button class="modal-tab-btn" data-tab="mindmap" onclick="switchModalTab('mindmap')">🧠 Mind Map</button>
+          <button class="modal-tab-btn" data-tab="chat" onclick="switchModalTab('chat')">💬 Tanya AI</button>
         </div>
 
         <!-- Tab 1: Transkrip -->
@@ -761,33 +761,28 @@
       });
     }
 
-    // REGEX PARSER: 100% Tangguh Mengekstraksi Bagian Transkrip, Notula, dan Mind Map
+    // REGEX PARSER: 100% Tangguh Mengekstraksi String Murni Tanpa Risiko TypeError
     function parseAIOutput(resultText) {
       let parsedTranscript = '';
-      let parsedSummary = resultText;
+      let parsedSummary = '';
       let parsedMindmap = '# RekanSuara Mindmap\n## Topik Rekaman';
 
-      // 1. Ekstraksi Transkrip Lengkap
-      const transMatch = resultText.match(/### TRANSKRIP LENGKAP\s*([\s\S]*?)(?=### (?:RINGKASAN EKSEKUTIF|KRONOLOGI FAKTA|RINGKASAN MATERI|MIND MAP)|$)/i);
-      if (transMatch && transMatch) {
-        parsedTranscript = transMatch.trim();
-      }
+      const text = String(resultText || '');
 
-      // 2. Ekstraksi Notula & Ringkasan (sebelum Mind Map)
-      const summMatch = resultText.match(/(### (?:RINGKASAN EKSEKUTIF|KRONOLOGI FAKTA|RINGKASAN MATERI)[\s\S]*?)(?=### MIND MAP|$)/i);
-      if (summMatch && summMatch) {
-        parsedSummary = summMatch.trim();
-      }
+      text.replace(/### TRANSKRIP LENGKAP\s*([\s\S]*?)(?=### (?:RINGKASAN EKSEKUTIF|KRONOLOGI FAKTA|RINGKASAN MATERI|MIND MAP)|$)/i, (full, captured) => {
+        if (captured) parsedTranscript = String(captured).trim();
+      });
 
-      // 3. Ekstraksi Mind Map
-      const mapMatch = resultText.match(/### MIND MAP\s*([\s\S]*)$/i);
-      if (mapMatch && mapMatch) {
-        parsedMindmap = mapMatch.trim();
-      }
+      text.replace(/(### (?:RINGKASAN EKSEKUTIF|KRONOLOGI FAKTA|RINGKASAN MATERI)[\s\S]*?)(?=### MIND MAP|$)/i, (full, captured) => {
+        if (captured) parsedSummary = String(captured).trim();
+      });
 
-      if (!parsedTranscript) {
-        parsedTranscript = resultText;
-      }
+      text.replace(/### MIND MAP\s*([\s\S]*)$/i, (full, captured) => {
+        if (captured) parsedMindmap = String(captured).trim();
+      });
+
+      if (!parsedTranscript) parsedTranscript = text;
+      if (!parsedSummary) parsedSummary = text;
 
       return { parsedTranscript, parsedSummary, parsedMindmap };
     }
@@ -807,9 +802,8 @@
       const mobileNavIndex = tabKeys.indexOf(tabId);
       if (mobileNavIndex !== -1) {
         const bottomNavs = document.querySelectorAll('.bottom-nav-item');
-        if (bottomNavs[mobileNavIndex]) {
-          bottomNavs[mobileNavIndex].classList.add('active');
-        }
+        const bNav = Array.from(bottomNavs).find((_, idx) => idx === mobileNavIndex);
+        if (bNav) bNav.classList.add('active');
       }
 
       if (tabId === 'dashboard' || tabId === 'files') renderRecords();
@@ -1066,18 +1060,17 @@
 
     window.switchModalTab = function(tabName) {
       const btns = document.querySelectorAll('.modal-tab-btn');
-      btns.forEach(btn => btn.classList.remove('active'));
+      btns.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-tab') === tabName) {
+          btn.classList.add('active');
+        }
+      });
 
       document.getElementById('tab-modal-transcript').style.display = tabName === 'transcript' ? 'block' : 'none';
       document.getElementById('tab-modal-ai').style.display = tabName === 'ai' ? 'block' : 'none';
       document.getElementById('tab-modal-mindmap').style.display = tabName === 'mindmap' ? 'block' : 'none';
       document.getElementById('tab-modal-chat').style.display = tabName === 'chat' ? 'block' : 'none';
-
-      const btnMap = { transcript: 0, ai: 1, mindmap: 2, chat: 3 };
-      const targetIdx = btnMap[tabName];
-      if (btns[targetIdx]) {
-        btns[targetIdx].classList.add('active');
-      }
 
       if (tabName === 'mindmap' && currentActiveRecord && currentActiveRecord.mindmapMarkdown) {
         renderMindmap(currentActiveRecord.mindmapMarkdown);
@@ -1101,7 +1094,7 @@
     }
 
     // ==========================================
-    // TANYA AI (Q&A INTERAKTIF BERDASARKAN TRANSKRIP)
+    // TANYA AI (Q&A INTERAKTIF DENGAN ISI REKAMAN)
     // ==========================================
     window.sendChatMessage = async function() {
       const inputEl = document.getElementById('chat-input');
@@ -1149,8 +1142,15 @@
           });
           const data = await res.json();
           if (res.ok && data.candidates && data.candidates.length > 0) {
-            reply = data.candidates[0].content.parts[0].text;
-            break;
+            for (const cand of data.candidates) {
+              if (cand.content && cand.content.parts) {
+                for (const p of cand.content.parts) {
+                  if (p.text) { reply = p.text; break; }
+                }
+              }
+              if (reply) break;
+            }
+            if (reply) break;
           }
         } catch(e) {}
       }
@@ -1304,9 +1304,18 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
 
             const data = await res.json();
             if (res.ok && data.candidates && data.candidates.length > 0) {
-              resultText = data.candidates[0].content.parts[0].text;
-              lastError = null;
-              break;
+              for (const cand of data.candidates) {
+                if (cand.content && cand.content.parts) {
+                  for (const p of cand.content.parts) {
+                    if (p.text) { resultText = p.text; break; }
+                  }
+                }
+                if (resultText) break;
+              }
+              if (resultText) {
+                lastError = null;
+                break;
+              }
             } else {
               lastError = new Error(data.error?.message || `Model ${mName} sibuk`);
             }
@@ -1320,7 +1329,6 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         uploadProgressFill.style.width = '85%';
         uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan hasil transkrip & notula ke database...';
 
-        // Parsing hasil dengan regex engine yang aman
         const { parsedTranscript, parsedSummary, parsedMindmap } = parseAIOutput(resultText);
 
         const newRecord = {
@@ -1411,9 +1419,18 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
             });
             const data = await res.json();
             if (res.ok && data.candidates && data.candidates.length > 0) {
-              resultText = data.candidates[0].content.parts[0].text;
-              lastError = null;
-              break;
+              for (const cand of data.candidates) {
+                if (cand.content && cand.content.parts) {
+                  for (const p of cand.content.parts) {
+                    if (p.text) { resultText = p.text; break; }
+                  }
+                }
+                if (resultText) break;
+              }
+              if (resultText) {
+                lastError = null;
+                break;
+              }
             } else {
               lastError = new Error(data.error?.message || `Gagal pada ${mName}`);
             }
