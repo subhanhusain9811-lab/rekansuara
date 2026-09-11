@@ -235,7 +235,7 @@
     th { padding: 14px 16px; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; border-bottom: 1px solid var(--border-color); }
     td { padding: 16px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
     .action-btns { display: flex; gap: 12px; }
-    .btn-icon { background: none; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; transition: color 0.2s; }
+    .btn-icon { background: none; border: none; color: var(--text-muted); font-size: 1.15rem; cursor: pointer; transition: color 0.2s; padding: 6px; }
     .btn-icon:hover { color: var(--accent-blue); }
     .btn-icon.delete:hover { color: var(--danger); }
 
@@ -244,7 +244,7 @@
     .form-control { width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); padding: 12px 16px; border-radius: 8px; color: #fff; font-size: 0.95rem; }
     .form-control:focus { outline: none; border-color: var(--accent-blue); }
 
-    /* Modal Styles */
+    /* Modal Pop-up */
     .modal-backdrop {
       display: none;
       position: fixed;
@@ -459,18 +459,18 @@
       </div>
     </section>
 
-    <!-- TAB 3: UPLOAD FILE & AI TRANSCRIPTION STUDIO -->
+    <!-- TAB 3: UPLOAD FILE & TRANSKRIPSI CERDAS -->
     <section id="upload" class="tab-content">
       <div class="page-header"><h1>Upload & Transkripsi Cerdas</h1></div>
       <div class="card">
-        <div class="dropzone" id="drop-area" onclick="document.getElementById('file-input').click()">
+        <div class="dropzone" id="drop-area">
           <i class="fa-solid fa-cloud-arrow-up" style="font-size: 3.5rem; color: var(--accent-blue); margin-bottom: 16px;"></i>
           <h3 style="margin-bottom: 8px; font-size: 1.25rem;">Klik atau Tarik Berkas Audio ke Sini</h3>
           <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
             Format didukung: <b>MP3, WAV, M4A, MP4, WebM</b> (Disarankan &le; 25MB)
           </p>
           <input type="file" id="file-input" accept="audio/*,video/*" style="display: none;">
-          <button type="button" class="btn-action" style="background: var(--accent-indigo); color: #fff;">
+          <button type="button" id="btn-browse-file" class="btn-action" style="background: var(--accent-indigo); color: #fff;">
             <i class="fa-solid fa-file"></i> Pilih Berkas Audio
           </button>
         </div>
@@ -545,7 +545,7 @@
           <label>Model Gemini Utama</label>
           <input type="text" id="ai-model" class="form-control" value="gemini-3.6-flash" placeholder="gemini-3.6-flash">
           <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">
-            Didukung fitur <b>Smart Fallback</b> otomatis: jika model utama sibuk, sistem otomatis mencoba model cadangan seperti <b>gemini-3.6-flash-lite</b>.
+            Didukung fitur <b>Smart Fallback</b> otomatis ke model cadangan seperti <b>gemini-3.6-flash-lite</b> jika server sedang sibuk.
           </small>
         </div>
         <div class="form-group">
@@ -737,7 +737,8 @@
       const db = await openDB();
       return new Promise((resolve, reject) => {
         const tx = db.transaction('recordings', 'readwrite');
-        tx.objectStore('recordings').delete(id);
+        const numId = Number(id) || id;
+        tx.objectStore('recordings').delete(numId);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
@@ -771,9 +772,13 @@
       const desktopNav = document.querySelector(`.nav-item[data-tab="${tabId}"]`);
       if (desktopNav) desktopNav.classList.add('active');
 
-      const mobileNavIndex = ['dashboard', 'record', 'upload', 'files', 'settings'].indexOf(tabId);
+      const tabKeys = ['dashboard', 'record', 'upload', 'files', 'settings'];
+      const mobileNavIndex = tabKeys.indexOf(tabId);
       if (mobileNavIndex !== -1) {
-        document.querySelectorAll('.bottom-nav-item')[mobileNavIndex].classList.add('active');
+        const bottomNavs = document.querySelectorAll('.bottom-nav-item');
+        if (bottomNavs[mobileNavIndex]) {
+          bottomNavs[mobileNavIndex].classList.add('active');
+        }
       }
 
       if (tabId === 'dashboard' || tabId === 'files') renderRecords();
@@ -839,7 +844,7 @@
           recognition.onresult = (event) => {
             let txt = '';
             for (let i = 0; i < event.results.length; i++) {
-              txt += event.results.item(i).item(0).transcript + ' ';
+              txt += event.results[i][0].transcript + ' ';
             }
             transcriptBox.textContent = txt;
           };
@@ -896,7 +901,7 @@
       let x = 0;
 
       for (let i = 0; i < bufferLength; i++) {
-        const barHeight = (dataArray.at(i) / 255) * canvas.height;
+        const barHeight = (dataArray[i] / 255) * canvas.height;
         canvasCtx.fillStyle = '#38bdf8';
         canvasCtx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
         x += barWidth;
@@ -920,7 +925,7 @@
       tbody.innerHTML = '';
 
       if (records.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">Belum ada rekaman yang cocok.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted); padding: 32px;">Belum ada rekaman yang cocok.</td></tr>';
         return;
       }
 
@@ -936,8 +941,8 @@
           <td data-label="Status AI">${statusBadge}</td>
           <td data-label="Aksi">
             <div class="action-btns">
-              <button class="btn-icon" title="Buka Detail & AI" onclick="openDetailById(${rec.id})"><i class="fa-solid fa-folder-open"></i></button>
-              <button class="btn-icon delete" title="Hapus" onclick="deleteRec(${rec.id})"><i class="fa-solid fa-trash"></i></button>
+              <button class="btn-icon" title="Buka Detail & AI" onclick="window.openDetailById('${rec.id}')"><i class="fa-solid fa-folder-open"></i></button>
+              <button class="btn-icon delete" title="Hapus" onclick="window.deleteRec('${rec.id}')"><i class="fa-solid fa-trash"></i></button>
             </div>
           </td>
         `;
@@ -954,21 +959,23 @@
       }
       records.slice(0, 5).forEach((rec) => {
         const item = document.createElement('div');
-        item.style = 'background: rgba(255,255,255,0.03); padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); cursor: pointer;';
-        item.onclick = () => openDetailById(rec.id);
+        item.style = 'background: rgba(255,255,255,0.03); padding: 14px 18px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;';
+        item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.06)';
+        item.onmouseout = () => item.style.background = 'rgba(255,255,255,0.03)';
+        item.onclick = () => window.openDetailById(rec.id);
         item.innerHTML = `
           <div>
-            <div style="font-weight: 500; font-size: 0.9rem; color: #fff;">${rec.title}</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${rec.date} • ${rec.duration} detik • ${rec.statusAI}</div>
+            <div style="font-weight: 500; font-size: 0.95rem; color: #fff;">${rec.title}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">${rec.date} • ${rec.duration} detik • ${rec.statusAI}</div>
           </div>
-          <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); font-size: 0.8rem;"></i>
+          <i class="fa-solid fa-chevron-right" style="color: var(--accent-blue); font-size: 0.9rem;"></i>
         `;
         recentList.appendChild(item);
       });
     }
 
     window.filterRecords = function(keyword) {
-      const term = keyword.toLowerCase().trim();
+      const term = (keyword || '').toLowerCase().trim();
       if (!term) {
         renderTableRows(allStoredRecords);
         return;
@@ -983,7 +990,7 @@
 
     window.openDetailById = async function(id) {
       const records = await getRecordings();
-      const rec = records.find(r => r.id === id);
+      const rec = records.find(r => String(r.id) === String(id));
       if (rec) openModalDetail(rec);
     };
 
@@ -1011,7 +1018,6 @@
         renderMindmap(rec.mindmapMarkdown);
       }
 
-      // Reset Q&A history
       document.getElementById('chat-history-box').innerHTML = `
         <div class="chat-bubble ai">Halo! Saya asisten RekanSuara. Ajukan pertanyaan apa saja mengenai isi rekaman ini (misalnya: nama pihak, kesepakatan, angka, atau tanggal penting).</div>
       `;
@@ -1028,14 +1034,19 @@
     };
 
     window.switchModalTab = function(tabName) {
-      document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active'));
+      const btns = document.querySelectorAll('.modal-tab-btn');
+      btns.forEach(btn => btn.classList.remove('active'));
+
       document.getElementById('tab-modal-transcript').style.display = tabName === 'transcript' ? 'block' : 'none';
       document.getElementById('tab-modal-ai').style.display = tabName === 'ai' ? 'block' : 'none';
       document.getElementById('tab-modal-mindmap').style.display = tabName === 'mindmap' ? 'block' : 'none';
       document.getElementById('tab-modal-chat').style.display = tabName === 'chat' ? 'block' : 'none';
 
       const btnMap = { transcript: 0, ai: 1, mindmap: 2, chat: 3 };
-      document.querySelectorAll('.modal-tab-btn').at(btnMap[tabName]).classList.add('active');
+      const targetIdx = btnMap[tabName];
+      if (btns[targetIdx]) {
+        btns[targetIdx].classList.add('active');
+      }
 
       if (tabName === 'mindmap' && currentActiveRecord && currentActiveRecord.mindmapMarkdown) {
         renderMindmap(currentActiveRecord.mindmapMarkdown);
@@ -1044,6 +1055,7 @@
 
     function renderMindmap(markdownText) {
       const svg = document.getElementById('markmap-svg');
+      if (!svg) return;
       svg.innerHTML = '';
       if (window.markmap && window.markmap.Markmap) {
         try {
@@ -1067,7 +1079,6 @@
 
       const chatHistory = document.getElementById('chat-history-box');
       
-      // Tambah bubble pengguna
       const userBubble = document.createElement('div');
       userBubble.className = 'chat-bubble user';
       userBubble.textContent = userQ;
@@ -1075,7 +1086,6 @@
       inputEl.value = '';
       chatHistory.scrollTop = chatHistory.scrollHeight;
 
-      // Tambah bubble respon AI (loading)
       const aiBubble = document.createElement('div');
       aiBubble.className = 'chat-bubble ai';
       aiBubble.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menemukan jawaban dari rekaman...';
@@ -1107,8 +1117,8 @@
             body: JSON.stringify({ contents: [{ parts: [{ text: promptChat }] }] })
           });
           const data = await res.json();
-          if (res.ok && data.candidates?.at(0)?.content?.parts?.at(0)?.text) {
-            reply = data.candidates.at(0).content.parts.at(0).text;
+          if (res.ok && data.candidates && data.candidates.length > 0) {
+            reply = data.candidates[0].content.parts[0].text;
             break;
           }
         } catch(e) {}
@@ -1119,9 +1129,11 @@
     };
 
     // ==========================================
-    // UPLOAD & TRANSKRIPSI CERDAS MULTIMODAL
+    // UPLOAD & TRANSKRIPSI CERDAS
     // ==========================================
+    const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('file-input');
+    const btnBrowseFile = document.getElementById('btn-browse-file');
     const uploadStatusCard = document.getElementById('upload-status-card');
     const uploadFileName = document.getElementById('upload-file-name');
     const uploadFileSize = document.getElementById('upload-file-size');
@@ -1130,9 +1142,36 @@
     const uploadProgressText = document.getElementById('upload-progress-text');
     const btnProcessAudio = document.getElementById('btn-process-audio');
 
+    dropArea.addEventListener('click', (e) => {
+      if (e.target !== fileInput) fileInput.click();
+    });
+
+    btnBrowseFile.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    });
+
+    dropArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropArea.classList.add('dragover');
+    });
+
+    dropArea.addEventListener('dragleave', () => {
+      dropArea.classList.remove('dragover');
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropArea.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleSelectedFile(e.dataTransfer.files[0]);
+      }
+    });
+
     fileInput.addEventListener('change', (e) => {
-      const file = e.target.files.item(0);
-      if (file) handleSelectedFile(file);
+      if (e.target.files && e.target.files.length > 0) {
+        handleSelectedFile(e.target.files[0]);
+      }
     });
 
     function handleSelectedFile(file) {
@@ -1189,7 +1228,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
 (Tuliskan seluruh isi percakapan secara akurat kata demi kata dari rekaman ini)
 
 ### RINGKASAN EKSEKUTIF
-(Tuliskan rangkuman inti pembicaraan dalam 2-3 paragraf padat)
+(Tuliskan rangkuman inti rapat/pembicaraan dalam 2-3 paragraf padat)
 
 ### KEPUTUSAN & TINDAK LANJUT (ACTION ITEMS)
 (Tuliskan poin-poin keputusan dan daftar tugas yang harus dijalankan)
@@ -1233,8 +1272,8 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
             });
 
             const data = await res.json();
-            if (res.ok && data.candidates?.at(0)?.content?.parts?.at(0)?.text) {
-              resultText = data.candidates.at(0).content.parts.at(0).text;
+            if (res.ok && data.candidates && data.candidates.length > 0) {
+              resultText = data.candidates[0].content.parts[0].text;
               lastError = null;
               break;
             } else {
@@ -1257,9 +1296,9 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         if (resultText.includes('### TRANSKRIP LENGKAP')) {
           const transParts = resultText.split('### TRANSKRIP LENGKAP');
           if (transParts.length > 1) {
-            const afterTrans = transParts.at(1) || '';
+            const afterTrans = transParts;
             if (afterTrans.includes('### RINGKASAN EKSEKUTIF')) {
-              parsedTranscript = (afterTrans.split('### RINGKASAN EKSEKUTIF').at(0) || '').trim();
+              parsedTranscript = (afterTrans.split('### RINGKASAN EKSEKUTIF')[0] || '').trim();
             } else {
               parsedTranscript = afterTrans.trim();
             }
@@ -1269,9 +1308,9 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         if (resultText.includes('### RINGKASAN EKSEKUTIF')) {
           const summParts = resultText.split('### RINGKASAN EKSEKUTIF');
           if (summParts.length > 1) {
-            const afterSumm = summParts.at(1) || '';
+            const afterSumm = summParts;
             if (afterSumm.includes('### MIND MAP')) {
-              parsedSummary = '### RINGKASAN EKSEKUTIF\n' + (afterSumm.split('### MIND MAP').at(0) || '').trim();
+              parsedSummary = '### RINGKASAN EKSEKUTIF\n' + (afterSumm.split('### MIND MAP')[0] || '').trim();
             } else {
               parsedSummary = '### RINGKASAN EKSEKUTIF\n' + afterSumm.trim();
             }
@@ -1283,7 +1322,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         if (resultText.includes('### MIND MAP')) {
           const mapParts = resultText.split('### MIND MAP');
           if (mapParts.length > 1) {
-            parsedMindmap = (mapParts.at(1) || '').trim();
+            parsedMindmap = (mapParts || '').trim();
           }
         }
 
@@ -1321,7 +1360,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
     };
 
     // ==========================================
-    // ANALISIS NOTULA SESUAI TEMPLATE PRESET
+    // ANALISIS NOTULA SESUAI PRESET FORMAT
     // ==========================================
     window.runAIAnalysis = async function() {
       if (!currentActiveRecord) return;
@@ -1374,8 +1413,8 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
               body: JSON.stringify({ contents: [{ parts: [{ text: promptFormat }] }] })
             });
             const data = await res.json();
-            if (res.ok && data.candidates?.at(0)?.content?.parts?.at(0)?.text) {
-              resultText = data.candidates.at(0).content.parts.at(0).text;
+            if (res.ok && data.candidates && data.candidates.length > 0) {
+              resultText = data.candidates[0].content.parts[0].text;
               lastError = null;
               break;
             } else {
@@ -1392,7 +1431,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         if (resultText.includes('### MIND MAP')) {
           const parts = resultText.split('### MIND MAP');
           if (parts.length > 1) {
-            mindmapMd = (parts.at(1) || '').trim();
+            mindmapMd = (parts || '').trim();
           }
         }
 
