@@ -201,7 +201,6 @@
       white-space: pre-wrap;
     }
 
-    /* Upload Drag-and-Drop Area */
     .dropzone {
       border: 2px dashed rgba(56, 189, 248, 0.4);
       border-radius: 16px;
@@ -443,9 +442,9 @@
           </button>
         </div>
 
-        <!-- Info Berkas Terpilih & Progress Transkripsi -->
+        <!-- Info Berkas & Tombol Proses -->
         <div id="upload-status-card" style="display: none; margin-top: 24px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <i class="fa-solid fa-file-audio" style="font-size: 1.8rem; color: var(--accent-blue);"></i>
               <div>
@@ -510,7 +509,7 @@
           <label>Model Gemini Utama</label>
           <input type="text" id="ai-model" class="form-control" value="gemini-3.6-flash" placeholder="gemini-3.6-flash">
           <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">
-            Didukung fitur <b>Smart Fallback</b> otomatis: jika model utama sibuk, sistem otomatis mencoba model cadangan seperti <b>gemini-3.6-flash-lite</b>.
+            Didukung fitur <b>Smart Fallback</b> otomatis ke model cadangan seperti <b>gemini-3.6-flash-lite</b> jika server sedang sibuk.
           </small>
         </div>
         <div class="form-group">
@@ -525,7 +524,7 @@
       <div class="card">
         <h3 style="margin-bottom: 8px;">Konfigurasi Speech-to-Text</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
-          Perekaman langsung mikrofon menggunakan <b>Native Web Speech API</b> (Gratis). Berkas audio yang diunggah diproses langsung oleh Gemini Multimodal Audio.
+          Perekaman mikrofon langsung menggunakan <b>Native Web Speech API</b> (Gratis). Berkas audio yang diunggah diproses langsung oleh Gemini Multimodal Audio.
         </p>
       </div>
     </section>
@@ -677,13 +676,18 @@
       });
     }
 
-    // Helper: Mengubah Berkas Audio Menjadi Base64
+    // Helper: Konversi Berkas Audio Menjadi String Base64 Murni (Tanpa Header Data URL)
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-          const base64 = reader.result.split(',');
-          resolve(base64);
+          const res = reader.result;
+          const commaIdx = res.indexOf(',');
+          if (commaIdx !== -1) {
+            resolve(res.substring(commaIdx + 1));
+          } else {
+            resolve(res);
+          }
         };
         reader.onerror = err => reject(err);
         reader.readAsDataURL(file);
@@ -960,7 +964,7 @@
     }
 
     // ==========================================
-    // FITUR CERDAS: TRANSKRIPSI & ANALISIS BERKAS AUDIO LANGSUNG
+    // FITUR CERDAS: TRANSKRIPSI & ANALISIS BERKAS AUDIO LANGSUNG (FIXED BASE64)
     // ==========================================
     const fileInput = document.getElementById('file-input');
     const uploadStatusCard = document.getElementById('upload-status-card');
@@ -979,7 +983,7 @@
     function handleSelectedFile(file) {
       selectedUploadFile = file;
       uploadFileName.textContent = file.name;
-      uploadFileSize.textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB • ${file.type || 'audio'}`;
+      uploadFileSize.textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
       uploadStatusCard.style.display = 'block';
       uploadProgressBox.style.display = 'none';
       btnProcessAudio.disabled = false;
@@ -995,9 +999,8 @@
         return;
       }
 
-      // Validasi batas ukuran untuk browser inline
       if (selectedUploadFile.size > 25 * 1024 * 1024) {
-        alert('Ukuran berkas melebihi 25MB. Silakan gunakan berkas audio yang lebih ringkas agar dapat diproses langsung.');
+        alert('Ukuran berkas melebihi 25MB. Silakan gunakan berkas audio di bawah 25MB.');
         return;
       }
 
@@ -1007,12 +1010,24 @@
       uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Membaca dan mengonversi berkas audio...';
 
       try {
-        // 1. Konversi ke Base64
+        // Konversi berkas audio ke Base64 murni (String)
         const audioBase64 = await fileToBase64(selectedUploadFile);
-        const mimeType = selectedUploadFile.type || 'audio/mp3';
+        
+        // Deteksi MIME Type yang aman
+        let mimeType = selectedUploadFile.type;
+        if (!mimeType) {
+          const ext = selectedUploadFile.name.split('.').pop().toLowerCase();
+          if (ext === 'mp3') mimeType = 'audio/mp3';
+          else if (ext === 'wav') mimeType = 'audio/wav';
+          else if (ext === 'm4a') mimeType = 'audio/m4a';
+          else if (ext === 'mp4') mimeType = 'video/mp4';
+          else if (ext === 'webm') mimeType = 'audio/webm';
+          else if (ext === 'ogg') mimeType = 'audio/ogg';
+          else mimeType = 'audio/mp3';
+        }
 
         uploadProgressFill.style.width = '45%';
-        uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Mentranskripsi suara & menganalisis notula dengan Gemini Multimodal...';
+        uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Mentranskripsi & menganalisis notula dengan Gemini...';
 
         const promptAudio = `Dengarkan rekaman audio ini dengan sangat teliti.
 Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan format terstruktur persis berikut:
@@ -1052,11 +1067,12 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         for (const mName of modelsToTry) {
           try {
             uploadProgressText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Memproses dengan model ${mName}...`;
+            
             const payload = {
               contents: [{
                 parts: [
                   { text: promptAudio },
-                  { inlineData: { mimeType: mimeType, data: audioBase64 } }
+                  { inlineData: { mimeType: mimeType, data: String(audioBase64) } }
                 ]
               }]
             };
@@ -1081,45 +1097,50 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         }
 
         if (!resultText) {
-          throw lastError || new Error('Gagal memproses berkas audio. Coba kembali beberapa saat lagi.');
+          throw lastError || new Error('Gagal memproses berkas audio. Coba beberapa saat lagi.');
         }
 
         uploadProgressFill.style.width = '85%';
-        uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyusun transkrip & peta konsep ke database...';
+        uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan hasil transkrip & notula ke database...';
 
-        // Pemisahan hasil transkrip dan analisis
+        // Ekstraksi teks hasil transkripsi dan analisis
         let parsedTranscript = '(Transkrip tidak dapat diekstraksi)';
         let parsedSummary = '';
         let parsedMindmap = '# RekanSuara Mindmap\n## Topik Rekaman';
 
         if (resultText.includes('### TRANSKRIP LENGKAP')) {
-          const afterTrans = resultText.split('### TRANSKRIP LENGKAP');
-          if (afterTrans.includes('### RINGKASAN EKSEKUTIF')) {
-            parsedTranscript = afterTrans.split('### RINGKASAN EKSEKUTIF')[0].trim();
-          } else {
-            parsedTranscript = afterTrans.trim();
+          const transParts = resultText.split('### TRANSKRIP LENGKAP');
+          if (transParts.length > 1) {
+            const afterTrans = transParts;
+            if (afterTrans.includes('### RINGKASAN EKSEKUTIF')) {
+              parsedTranscript = afterTrans.split('### RINGKASAN EKSEKUTIF')[0].trim();
+            } else {
+              parsedTranscript = afterTrans.trim();
+            }
           }
         }
 
         if (resultText.includes('### RINGKASAN EKSEKUTIF')) {
-          const afterSumm = resultText.split('### RINGKASAN EKSEKUTIF');
-          if (afterSumm.includes('### MIND MAP')) {
-            parsedSummary = '### RINGKASAN EKSEKUTIF\n' + afterSumm.split('### MIND MAP')[0].trim();
-          } else {
-            parsedSummary = '### RINGKASAN EKSEKUTIF\n' + afterSumm.trim();
+          const summParts = resultText.split('### RINGKASAN EKSEKUTIF');
+          if (summParts.length > 1) {
+            const afterSumm = summParts;
+            if (afterSumm.includes('### MIND MAP')) {
+              parsedSummary = '### RINGKASAN EKSEKUTIF\n' + afterSumm.split('### MIND MAP')[0].trim();
+            } else {
+              parsedSummary = '### RINGKASAN EKSEKUTIF\n' + afterSumm.trim();
+            }
           }
         } else {
           parsedSummary = resultText;
         }
 
         if (resultText.includes('### MIND MAP')) {
-          const parts = resultText.split('### MIND MAP');
-          if (parts.length > 1) {
-            parsedMindmap = parts.trim();
+          const mapParts = resultText.split('### MIND MAP');
+          if (mapParts.length > 1) {
+            parsedMindmap = mapParts.trim();
           }
         }
 
-        // Simpan ke IndexedDB
         const newRecord = {
           title: `Upload: ${selectedUploadFile.name}`,
           date: new Date().toLocaleDateString('id-ID'),
@@ -1144,7 +1165,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
           fileInput.value = '';
           btnProcessAudio.disabled = false;
           openModalDetail(newRecord);
-        }, 1000);
+        }, 800);
 
       } catch(err) {
         alert('Transkripsi berkas gagal: ' + err.message);
@@ -1153,7 +1174,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
       }
     };
 
-    // Analisis Transkrip Teks Biasa (Untuk rekaman mikrofon langsung)
+    // Analisis Transkrip Suara Langsung
     window.runAIAnalysis = async function() {
       if (!currentActiveRecord) return;
       const transcript = document.getElementById('modal-transcript-text').value.trim();
