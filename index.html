@@ -447,6 +447,13 @@
           </select>
         </div>
         <div class="form-group">
+          <label>Model Gemini</label>
+          <input type="text" id="ai-model" class="form-control" value="gemini-3.6-flash" placeholder="gemini-3.6-flash">
+          <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">
+            Default: <b>gemini-3.6-flash</b>. Anda dapat menggantinya kapan saja sesuai rilis terbaru Google.
+          </small>
+        </div>
+        <div class="form-group">
           <label>API Key</label>
           <input type="password" id="api-key" class="form-control" placeholder="Masukkan API Key (AIzaSy...)">
         </div>
@@ -494,10 +501,10 @@
         <div id="tab-modal-ai" style="display: none;">
           <div id="ai-loading" style="display: none; text-align: center; padding: 40px;">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--accent-blue);"></i>
-            <p id="ai-status-text" style="margin-top: 12px; color: var(--text-muted); font-size: 0.9rem;">Mendeteksi model Gemini dan menganalisis...</p>
+            <p id="ai-status-text" style="margin-top: 12px; color: var(--text-muted); font-size: 0.9rem;">Menghubungi Gemini 3.6 Flash...</p>
           </div>
           <div id="ai-content-box" style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
-            Belum ada hasil analisis AI. Klik tombol 'Analisis dengan AI' di bawah.
+            Belum ada hasil analisis AI. Klik tombol 'Analisis AI' di bawah.
           </div>
         </div>
 
@@ -874,7 +881,7 @@
       }
     }
 
-    // AI Analysis Pipeline DENGAN AUTO-DETECT MODEL
+    // AI Pipeline Menggunakan Gemini 3.6 Flash
     window.runAIAnalysis = async function() {
       if (!currentActiveRecord) return;
       const transcript = document.getElementById('modal-transcript-text').value.trim();
@@ -892,6 +899,8 @@
       }
 
       const provider = localStorage.getItem('rekansuara_provider') || 'gemini';
+      const modelName = localStorage.getItem('rekansuara_model') || 'gemini-3.6-flash';
+
       const prompt = `Anda adalah asisten notulensi profesional. Analisis transkrip berikut:\n\n"""\n${transcript}\n"""\n\nBerikan output terstruktur dalam bahasa Indonesia dengan format persis berikut:\n\n### RINGKASAN EKSEKUTIF\n(Tuliskan ringkasan inti pembicaraan dalam 2-3 paragraf padat)\n\n### KEPUTUSAN & TINDAK LANJUT (ACTION ITEMS)\n(Buat daftar tugas penting, penanggung jawab, dan langkah berikutnya)\n\n### MIND MAP\n(Buat struktur peta pikiran dalam format markdown list bertingkat yang rapi, contoh:\n# Topik Utama\n## Sub Topik 1\n- Poin A\n- Poin B\n## Sub Topik 2\n- Poin C\n)`;
 
       switchModalTab('ai');
@@ -901,26 +910,6 @@
       try {
         let resultText = '';
         if (provider === 'gemini') {
-          // 1. AUTO-DETECT: Cari model yang aktif dan didukung oleh API Key ini
-          let modelName = 'gemini-1.5-flash-latest';
-          try {
-            const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-            if (listRes.ok) {
-              const listData = await listRes.json();
-              const usableModels = listData.models
-                ?.filter(m => m.supportedGenerationMethods?.includes('generateContent'))
-                ?.map(m => m.name.replace('models/', ''));
-
-              if (usableModels && usableModels.length > 0) {
-                // Utamakan model flash yang cepat
-                modelName = usableModels.find(m => m.includes('flash')) || usableModels.find(m => m.includes('gemini')) || usableModels[0];
-              }
-            }
-          } catch(e) {
-            console.warn('Gagal membaca list model:', e);
-          }
-
-          // 2. Eksekusi generateContent dengan model yang terdeteksi
           const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1043,15 +1032,18 @@
 
     window.saveSettings = function() {
       localStorage.setItem('rekansuara_provider', document.getElementById('ai-provider').value);
-      localStorage.setItem('rekansuara_apikey', document.getElementById('api-key').value);
+      localStorage.setItem('rekansuara_model', document.getElementById('ai-model').value.trim());
+      localStorage.setItem('rekansuara_apikey', document.getElementById('api-key').value.trim());
       alert('Pengaturan berhasil disimpan!');
     };
 
     window.addEventListener('DOMContentLoaded', () => {
       renderRecords();
       const savedProvider = localStorage.getItem('rekansuara_provider');
+      const savedModel = localStorage.getItem('rekansuara_model');
       const savedKey = localStorage.getItem('rekansuara_apikey');
       if (savedProvider) document.getElementById('ai-provider').value = savedProvider;
+      if (savedModel) document.getElementById('ai-model').value = savedModel;
       if (savedKey) document.getElementById('api-key').value = savedKey;
 
       if ('serviceWorker' in navigator) {
