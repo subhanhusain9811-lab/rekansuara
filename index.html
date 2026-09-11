@@ -761,6 +761,37 @@
       });
     }
 
+    // REGEX PARSER: 100% Tangguh Mengekstraksi Bagian Transkrip, Notula, dan Mind Map
+    function parseAIOutput(resultText) {
+      let parsedTranscript = '';
+      let parsedSummary = resultText;
+      let parsedMindmap = '# RekanSuara Mindmap\n## Topik Rekaman';
+
+      // 1. Ekstraksi Transkrip Lengkap
+      const transMatch = resultText.match(/### TRANSKRIP LENGKAP\s*([\s\S]*?)(?=### (?:RINGKASAN EKSEKUTIF|KRONOLOGI FAKTA|RINGKASAN MATERI|MIND MAP)|$)/i);
+      if (transMatch && transMatch) {
+        parsedTranscript = transMatch.trim();
+      }
+
+      // 2. Ekstraksi Notula & Ringkasan (sebelum Mind Map)
+      const summMatch = resultText.match(/(### (?:RINGKASAN EKSEKUTIF|KRONOLOGI FAKTA|RINGKASAN MATERI)[\s\S]*?)(?=### MIND MAP|$)/i);
+      if (summMatch && summMatch) {
+        parsedSummary = summMatch.trim();
+      }
+
+      // 3. Ekstraksi Mind Map
+      const mapMatch = resultText.match(/### MIND MAP\s*([\s\S]*)$/i);
+      if (mapMatch && mapMatch) {
+        parsedMindmap = mapMatch.trim();
+      }
+
+      if (!parsedTranscript) {
+        parsedTranscript = resultText;
+      }
+
+      return { parsedTranscript, parsedSummary, parsedMindmap };
+    }
+
     window.switchTab = function(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -844,7 +875,7 @@
           recognition.onresult = (event) => {
             let txt = '';
             for (let i = 0; i < event.results.length; i++) {
-              txt += event.results[i][0].transcript + ' ';
+              txt += event.results.item(i).item(0).transcript + ' ';
             }
             transcriptBox.textContent = txt;
           };
@@ -1070,7 +1101,7 @@
     }
 
     // ==========================================
-    // TANYA AI (Q&A INTERAKTIF DENGAN ISI REKAMAN)
+    // TANYA AI (Q&A INTERAKTIF BERDASARKAN TRANSKRIP)
     // ==========================================
     window.sendChatMessage = async function() {
       const inputEl = document.getElementById('chat-input');
@@ -1129,7 +1160,7 @@
     };
 
     // ==========================================
-    // UPLOAD & TRANSKRIPSI CERDAS
+    // UPLOAD & TRANSKRIPSI CERDAS MULTIMODAL
     // ==========================================
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('file-input');
@@ -1289,42 +1320,8 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         uploadProgressFill.style.width = '85%';
         uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan hasil transkrip & notula ke database...';
 
-        let parsedTranscript = '(Transkrip tidak dapat diekstraksi)';
-        let parsedSummary = '';
-        let parsedMindmap = '# RekanSuara Mindmap\n## Topik Rekaman';
-
-        if (resultText.includes('### TRANSKRIP LENGKAP')) {
-          const transParts = resultText.split('### TRANSKRIP LENGKAP');
-          if (transParts.length > 1) {
-            const afterTrans = transParts;
-            if (afterTrans.includes('### RINGKASAN EKSEKUTIF')) {
-              parsedTranscript = (afterTrans.split('### RINGKASAN EKSEKUTIF')[0] || '').trim();
-            } else {
-              parsedTranscript = afterTrans.trim();
-            }
-          }
-        }
-
-        if (resultText.includes('### RINGKASAN EKSEKUTIF')) {
-          const summParts = resultText.split('### RINGKASAN EKSEKUTIF');
-          if (summParts.length > 1) {
-            const afterSumm = summParts;
-            if (afterSumm.includes('### MIND MAP')) {
-              parsedSummary = '### RINGKASAN EKSEKUTIF\n' + (afterSumm.split('### MIND MAP')[0] || '').trim();
-            } else {
-              parsedSummary = '### RINGKASAN EKSEKUTIF\n' + afterSumm.trim();
-            }
-          }
-        } else {
-          parsedSummary = resultText;
-        }
-
-        if (resultText.includes('### MIND MAP')) {
-          const mapParts = resultText.split('### MIND MAP');
-          if (mapParts.length > 1) {
-            parsedMindmap = (mapParts || '').trim();
-          }
-        }
+        // Parsing hasil dengan regex engine yang aman
+        const { parsedTranscript, parsedSummary, parsedMindmap } = parseAIOutput(resultText);
 
         const newRecord = {
           title: `Upload: ${selectedUploadFile.name}`,
@@ -1427,21 +1424,15 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
 
         if (!resultText) throw lastError || new Error('Semua model sedang sibuk.');
 
-        let mindmapMd = '# RekanSuara Mindmap\n## Topik Rapat';
-        if (resultText.includes('### MIND MAP')) {
-          const parts = resultText.split('### MIND MAP');
-          if (parts.length > 1) {
-            mindmapMd = (parts || '').trim();
-          }
-        }
+        const { parsedSummary, parsedMindmap } = parseAIOutput(resultText);
 
         currentActiveRecord.statusAI = 'Selesai';
-        currentActiveRecord.summaryAI = resultText;
-        currentActiveRecord.mindmapMarkdown = mindmapMd;
+        currentActiveRecord.summaryAI = parsedSummary;
+        currentActiveRecord.mindmapMarkdown = parsedMindmap;
         currentActiveRecord.transcript = transcript;
         await updateRecording(currentActiveRecord);
 
-        document.getElementById('ai-content-box').textContent = resultText;
+        document.getElementById('ai-content-box').textContent = parsedSummary;
         renderRecords();
       } catch (err) {
         alert('Analisis AI gagal: ' + err.message);
