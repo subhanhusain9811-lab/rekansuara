@@ -201,6 +201,36 @@
       white-space: pre-wrap;
     }
 
+    /* Upload Drag-and-Drop Area */
+    .dropzone {
+      border: 2px dashed rgba(56, 189, 248, 0.4);
+      border-radius: 16px;
+      padding: 48px 24px;
+      text-align: center;
+      background: rgba(15, 23, 42, 0.6);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent-blue);
+      background: rgba(56, 189, 248, 0.05);
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 16px 0;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-indigo));
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
     .table-container { width: 100%; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
     th { padding: 14px 16px; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; border-bottom: 1px solid var(--border-color); }
@@ -397,17 +427,47 @@
       </div>
     </section>
 
-    <!-- TAB 3: UPLOAD FILE -->
+    <!-- TAB 3: UPLOAD FILE & AI TRANSCRIPTION STUDIO -->
     <section id="upload" class="tab-content">
-      <div class="page-header"><h1>Upload File</h1></div>
-      <div class="card" style="text-align: center; padding: 48px 24px;">
-        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 3rem; color: var(--accent-blue); margin-bottom: 16px;"></i>
-        <h3 style="margin-bottom: 8px;">Upload Audio/Video</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">Format didukung: MP3, WAV, M4A, MP4 (Pemrosesan lokal)</p>
-        <input type="file" id="file-input" accept="audio/*,video/*" style="display: none;">
-        <button class="btn-action" style="background: var(--accent-indigo); color: #fff;" onclick="document.getElementById('file-input').click()">
-          <i class="fa-solid fa-file"></i> Pilih File
-        </button>
+      <div class="page-header"><h1>Upload & Transkripsi Cerdas</h1></div>
+      <div class="card">
+        <div class="dropzone" id="drop-area" onclick="document.getElementById('file-input').click()">
+          <i class="fa-solid fa-cloud-arrow-up" style="font-size: 3.5rem; color: var(--accent-blue); margin-bottom: 16px;"></i>
+          <h3 style="margin-bottom: 8px; font-size: 1.25rem;">Klik atau Tarik Berkas Audio ke Sini</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+            Format didukung: <b>MP3, WAV, M4A, MP4, WebM</b> (Disarankan &le; 25MB)
+          </p>
+          <input type="file" id="file-input" accept="audio/*,video/*" style="display: none;">
+          <button type="button" class="btn-action" style="background: var(--accent-indigo); color: #fff;">
+            <i class="fa-solid fa-file"></i> Pilih Berkas Audio
+          </button>
+        </div>
+
+        <!-- Info Berkas Terpilih & Progress Transkripsi -->
+        <div id="upload-status-card" style="display: none; margin-top: 24px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <i class="fa-solid fa-file-audio" style="font-size: 1.8rem; color: var(--accent-blue);"></i>
+              <div>
+                <div id="upload-file-name" style="font-weight: 600; color: #fff;">nama_berkas.mp3</div>
+                <div id="upload-file-size" style="font-size: 0.8rem; color: var(--text-muted);">0 MB</div>
+              </div>
+            </div>
+            <button id="btn-process-audio" class="btn-action" style="background: var(--accent-blue); color: #0b1120;" onclick="startAudioTranscription()">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Transkripsi & Analisis AI
+            </button>
+          </div>
+
+          <!-- Progress Bar & Status -->
+          <div id="upload-progress-box" style="display: none; margin-top: 16px;">
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="upload-progress-fill"></div>
+            </div>
+            <p id="upload-progress-text" style="font-size: 0.85rem; color: var(--accent-blue); text-align: center; margin-top: 8px;">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Menyiapkan berkas audio...
+            </p>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -437,12 +497,12 @@
       <div class="card">
         <h3 style="margin-bottom: 8px;">Konfigurasi AI (BYOK)</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
-          Pilih provider AI untuk menghasilkan ringkasan dan peta konsep. API Key disimpan secara lokal di browser Anda untuk keamanan (Local-First).
+          Pilih provider AI untuk menghasilkan transkripsi berkas, ringkasan, dan peta konsep secara lokal dan aman.
         </p>
         <div class="form-group">
           <label>Provider AI</label>
           <select id="ai-provider" class="form-control">
-            <option value="gemini">Google Gemini (Disarankan - Ada Free Tier)</option>
+            <option value="gemini">Google Gemini (Disarankan - Mendukung Transkripsi Audio)</option>
             <option value="openai">OpenAI (ChatGPT)</option>
           </select>
         </div>
@@ -450,7 +510,7 @@
           <label>Model Gemini Utama</label>
           <input type="text" id="ai-model" class="form-control" value="gemini-3.6-flash" placeholder="gemini-3.6-flash">
           <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">
-            Didukung fitur <b>Smart Fallback</b> otomatis: bila model utama sibuk, sistem otomatis mencoba model cadangan seperti <b>gemini-3.6-flash-lite</b>.
+            Didukung fitur <b>Smart Fallback</b> otomatis: jika model utama sibuk, sistem otomatis mencoba model cadangan seperti <b>gemini-3.6-flash-lite</b>.
           </small>
         </div>
         <div class="form-group">
@@ -465,7 +525,7 @@
       <div class="card">
         <h3 style="margin-bottom: 8px;">Konfigurasi Speech-to-Text</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
-          Aplikasi ini menggunakan <b>Native Web Speech API</b> bawaan browser (100% Gratis, diproses secara lokal tanpa kuota).
+          Perekaman langsung mikrofon menggunakan <b>Native Web Speech API</b> (Gratis). Berkas audio yang diunggah diproses langsung oleh Gemini Multimodal Audio.
         </p>
       </div>
     </section>
@@ -501,7 +561,7 @@
         <div id="tab-modal-ai" style="display: none;">
           <div id="ai-loading" style="display: none; text-align: center; padding: 40px;">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--accent-blue);"></i>
-            <p id="ai-status-text" style="margin-top: 12px; color: var(--text-muted); font-size: 0.9rem;">Menghubungi AI dan menganalisis...</p>
+            <p id="ai-status-text" style="margin-top: 12px; color: var(--text-muted); font-size: 0.9rem;">Menganalisis audio dan menyusun notula...</p>
           </div>
           <div id="ai-content-box" style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
             Belum ada hasil analisis AI. Klik tombol 'Analisis AI' di bawah.
@@ -558,6 +618,7 @@
     const DB_NAME = 'RekanSuaraDB';
     const DB_VERSION = 1;
     let currentActiveRecord = null;
+    let selectedUploadFile = null;
 
     function openDB() {
       return new Promise((resolve, reject) => {
@@ -613,6 +674,19 @@
         tx.objectStore('recordings').delete(id);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // Helper: Mengubah Berkas Audio Menjadi Base64
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result.split(',');
+          resolve(base64);
+        };
+        reader.onerror = err => reject(err);
+        reader.readAsDataURL(file);
       });
     }
 
@@ -760,7 +834,7 @@
       }
     }
 
-    // Render Data
+    // Render Data (File Saya & Dashboard)
     async function renderRecords() {
       const records = await getRecordings();
       document.getElementById('stat-total').textContent = records.length;
@@ -885,7 +959,201 @@
       }
     }
 
-    // AI Pipeline DENGAN SMART FALLBACK ANTI-OVERLOAD
+    // ==========================================
+    // FITUR CERDAS: TRANSKRIPSI & ANALISIS BERKAS AUDIO LANGSUNG
+    // ==========================================
+    const fileInput = document.getElementById('file-input');
+    const uploadStatusCard = document.getElementById('upload-status-card');
+    const uploadFileName = document.getElementById('upload-file-name');
+    const uploadFileSize = document.getElementById('upload-file-size');
+    const uploadProgressBox = document.getElementById('upload-progress-box');
+    const uploadProgressFill = document.getElementById('upload-progress-fill');
+    const uploadProgressText = document.getElementById('upload-progress-text');
+    const btnProcessAudio = document.getElementById('btn-process-audio');
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleSelectedFile(file);
+    });
+
+    function handleSelectedFile(file) {
+      selectedUploadFile = file;
+      uploadFileName.textContent = file.name;
+      uploadFileSize.textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB • ${file.type || 'audio'}`;
+      uploadStatusCard.style.display = 'block';
+      uploadProgressBox.style.display = 'none';
+      btnProcessAudio.disabled = false;
+    }
+
+    window.startAudioTranscription = async function() {
+      if (!selectedUploadFile) return;
+
+      const apiKey = localStorage.getItem('rekansuara_apikey');
+      if (!apiKey) {
+        alert('API Key belum diisi. Silakan masukkan API Key Gemini Anda di menu Pengaturan.');
+        switchTab('settings');
+        return;
+      }
+
+      // Validasi batas ukuran untuk browser inline
+      if (selectedUploadFile.size > 25 * 1024 * 1024) {
+        alert('Ukuran berkas melebihi 25MB. Silakan gunakan berkas audio yang lebih ringkas agar dapat diproses langsung.');
+        return;
+      }
+
+      btnProcessAudio.disabled = true;
+      uploadProgressBox.style.display = 'block';
+      uploadProgressFill.style.width = '20%';
+      uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Membaca dan mengonversi berkas audio...';
+
+      try {
+        // 1. Konversi ke Base64
+        const audioBase64 = await fileToBase64(selectedUploadFile);
+        const mimeType = selectedUploadFile.type || 'audio/mp3';
+
+        uploadProgressFill.style.width = '45%';
+        uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Mentranskripsi suara & menganalisis notula dengan Gemini Multimodal...';
+
+        const promptAudio = `Dengarkan rekaman audio ini dengan sangat teliti.
+Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan format terstruktur persis berikut:
+
+### TRANSKRIP LENGKAP
+(Tuliskan seluruh isi percakapan secara akurat kata demi kata dari rekaman ini)
+
+### RINGKASAN EKSEKUTIF
+(Tuliskan rangkuman inti rapat/pembicaraan dalam 2-3 paragraf padat)
+
+### KEPUTUSAN & TINDAK LANJUT (ACTION ITEMS)
+(Tuliskan poin-poin keputusan dan daftar tugas yang harus dijalankan)
+
+### MIND MAP
+(Buat struktur peta pikiran dalam format markdown list bertingkat yang rapi:
+# Topik Utama
+## Sub Topik 1
+- Poin A
+- Poin B
+## Sub Topik 2
+- Poin C
+)`;
+
+        const userSelectedModel = localStorage.getItem('rekansuara_model') || 'gemini-3.6-flash';
+        const candidateModels = [
+          userSelectedModel,
+          'gemini-3.6-flash-lite',
+          'gemini-2.5-flash-lite',
+          'gemini-2.0-flash',
+          'gemini-flash-latest'
+        ];
+        const modelsToTry = [...new Set(candidateModels)];
+
+        let resultText = '';
+        let lastError = null;
+
+        for (const mName of modelsToTry) {
+          try {
+            uploadProgressText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Memproses dengan model ${mName}...`;
+            const payload = {
+              contents: [{
+                parts: [
+                  { text: promptAudio },
+                  { inlineData: { mimeType: mimeType, data: audioBase64 } }
+                ]
+              }]
+            };
+
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mName}:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+              resultText = data.candidates[0].content.parts[0].text;
+              lastError = null;
+              break;
+            } else {
+              lastError = new Error(data.error?.message || `Model ${mName} gagal`);
+            }
+          } catch(err) {
+            lastError = err;
+          }
+        }
+
+        if (!resultText) {
+          throw lastError || new Error('Gagal memproses berkas audio. Coba kembali beberapa saat lagi.');
+        }
+
+        uploadProgressFill.style.width = '85%';
+        uploadProgressText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyusun transkrip & peta konsep ke database...';
+
+        // Pemisahan hasil transkrip dan analisis
+        let parsedTranscript = '(Transkrip tidak dapat diekstraksi)';
+        let parsedSummary = '';
+        let parsedMindmap = '# RekanSuara Mindmap\n## Topik Rekaman';
+
+        if (resultText.includes('### TRANSKRIP LENGKAP')) {
+          const afterTrans = resultText.split('### TRANSKRIP LENGKAP');
+          if (afterTrans.includes('### RINGKASAN EKSEKUTIF')) {
+            parsedTranscript = afterTrans.split('### RINGKASAN EKSEKUTIF')[0].trim();
+          } else {
+            parsedTranscript = afterTrans.trim();
+          }
+        }
+
+        if (resultText.includes('### RINGKASAN EKSEKUTIF')) {
+          const afterSumm = resultText.split('### RINGKASAN EKSEKUTIF');
+          if (afterSumm.includes('### MIND MAP')) {
+            parsedSummary = '### RINGKASAN EKSEKUTIF\n' + afterSumm.split('### MIND MAP')[0].trim();
+          } else {
+            parsedSummary = '### RINGKASAN EKSEKUTIF\n' + afterSumm.trim();
+          }
+        } else {
+          parsedSummary = resultText;
+        }
+
+        if (resultText.includes('### MIND MAP')) {
+          const parts = resultText.split('### MIND MAP');
+          if (parts.length > 1) {
+            parsedMindmap = parts.trim();
+          }
+        }
+
+        // Simpan ke IndexedDB
+        const newRecord = {
+          title: `Upload: ${selectedUploadFile.name}`,
+          date: new Date().toLocaleDateString('id-ID'),
+          duration: 0,
+          transcript: parsedTranscript,
+          statusAI: 'Selesai',
+          summaryAI: parsedSummary,
+          mindmapMarkdown: parsedMindmap,
+          audioBlob: selectedUploadFile
+        };
+
+        const newId = await saveRecording(newRecord);
+        newRecord.id = newId;
+
+        uploadProgressFill.style.width = '100%';
+        uploadProgressText.innerHTML = '<i class="fa-solid fa-check" style="color: var(--success);"></i> Berhasil ditranskripsi dan dianalisis!';
+
+        setTimeout(() => {
+          uploadStatusCard.style.display = 'none';
+          uploadProgressBox.style.display = 'none';
+          selectedUploadFile = null;
+          fileInput.value = '';
+          btnProcessAudio.disabled = false;
+          openModalDetail(newRecord);
+        }, 1000);
+
+      } catch(err) {
+        alert('Transkripsi berkas gagal: ' + err.message);
+        uploadProgressBox.style.display = 'none';
+        btnProcessAudio.disabled = false;
+      }
+    };
+
+    // Analisis Transkrip Teks Biasa (Untuk rekaman mikrofon langsung)
     window.runAIAnalysis = async function() {
       if (!currentActiveRecord) return;
       const transcript = document.getElementById('modal-transcript-text').value.trim();
@@ -903,7 +1171,7 @@
       }
 
       const provider = localStorage.getItem('rekansuara_provider') || 'gemini';
-      const prompt = `Anda adalah asisten notulensi profesional. Analisis transkrip berikut:\n\n"""\n${transcript}\n"""\n\nBerikan output terstruktur dalam bahasa Indonesia dengan format persis berikut:\n\n### RINGKASAN EKSEKUTIF\n(Tuliskan ringkasan inti pembicaraan dalam 2-3 paragraf padat)\n\n### KEPUTUSAN & TINDAK LANJUT (ACTION ITEMS)\n(Buat daftar tugas penting, penanggung jawab, dan langkah berikutnya)\n\n### MIND MAP\n(Buat struktur peta pikiran dalam format markdown list bertingkat yang rapi, contoh:\n# Topik Utama\n## Sub Topik 1\n- Poin A\n- Poin B\n## Sub Topik 2\n- Poin C\n)`;
+      const prompt = `Anda adalah asisten notulensi profesional. Analisis transkrip berikut:\n\n"""\n${transcript}\n"""\n\nBerikan output terstruktur dalam bahasa Indonesia dengan format persis berikut:\n\n### RINGKASAN EKSEKUTIF\n(Tuliskan ringkasan inti pembicaraan dalam 2-3 paragraf padat)\n\n### KEPUTUSAN & TINDAK LANJUT (ACTION ITEMS)\n(Buat daftar tugas penting, penanggung jawab, dan langkah berikutnya)\n\n### MIND MAP\n(Buat struktur peta pikiran dalam format markdown list bertingkat yang rapi:\n# Topik Utama\n## Sub Topik 1\n- Poin A\n- Poin B\n## Sub Topik 2\n- Poin C\n)`;
 
       switchModalTab('ai');
       document.getElementById('ai-loading').style.display = 'block';
@@ -913,8 +1181,6 @@
         let resultText = '';
         if (provider === 'gemini') {
           const userSelectedModel = localStorage.getItem('rekansuara_model') || 'gemini-3.6-flash';
-          
-          // Daftar antrean model cadangan jika model utama sedang padat (high demand)
           const candidateModels = [
             userSelectedModel,
             'gemini-3.6-flash-lite',
@@ -937,19 +1203,16 @@
               if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
                 resultText = data.candidates[0].content.parts[0].text;
                 lastError = null;
-                break; // Berhasil, hentikan loop
+                break;
               } else {
                 lastError = new Error(data.error?.message || `Gagal pada model ${mName}`);
-                console.warn(`Model ${mName} bermasalah, beralih ke alternatif...`, lastError);
               }
             } catch (fetchErr) {
               lastError = fetchErr;
             }
           }
 
-          if (!resultText) {
-            throw lastError || new Error('Seluruh cluster model sedang sibuk. Coba beberapa saat lagi.');
-          }
+          if (!resultText) throw lastError || new Error('Semua cluster model sedang sibuk.');
         } else {
           const res = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -961,7 +1224,6 @@
           resultText = data.choices[0].message.content;
         }
 
-        // Ekstraksi Mind Map yang aman
         let mindmapMd = '# RekanSuara Mindmap\n## Topik Rapat';
         if (resultText.includes('### MIND MAP')) {
           const parts = resultText.split('### MIND MAP');
@@ -1039,25 +1301,6 @@
       a.download = `${currentActiveRecord.title}.txt`;
       a.click();
     };
-
-    document.getElementById('file-input').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const newRecord = {
-          title: `Upload: ${file.name}`,
-          date: new Date().toLocaleDateString('id-ID'),
-          duration: 0,
-          transcript: `[Berkas diunggah: ${file.name}]`,
-          statusAI: 'Menunggu...',
-          summaryAI: '',
-          mindmapMarkdown: '',
-          audioBlob: file
-        };
-        await saveRecording(newRecord);
-        alert('Berkas berhasil disimpan ke daftar lokal.');
-        switchTab('files');
-      }
-    });
 
     window.deleteRec = async function(id) {
       if (confirm('Hapus rekaman ini?')) {
