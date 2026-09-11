@@ -42,7 +42,6 @@
       overflow-x: hidden;
     }
 
-    /* Sidebar Navigation */
     .sidebar {
       width: 260px;
       background: #0f172a;
@@ -66,7 +65,6 @@
       color: #fff;
       border-bottom: 1px solid var(--border-color);
     }
-
     .brand i { color: var(--accent-blue); font-size: 1.4rem; }
 
     .nav-list {
@@ -91,12 +89,10 @@
       transition: all 0.2s ease;
       cursor: pointer;
     }
-
     .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
     .nav-item.active { background: rgba(56, 189, 248, 0.12); color: var(--accent-blue); font-weight: 600; }
     .sidebar-footer { padding: 16px 20px; font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid var(--border-color); }
 
-    /* Main Content */
     .main-content {
       margin-left: 260px;
       flex: 1;
@@ -123,7 +119,6 @@
       margin-bottom: 24px;
     }
 
-    /* Banner & Stats */
     .welcome-banner {
       background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
       border-radius: 16px;
@@ -131,7 +126,6 @@
       color: #fff;
       margin-bottom: 24px;
     }
-
     .welcome-banner h2 { font-size: 1.5rem; margin-bottom: 8px; }
     .welcome-banner p { opacity: 0.9; font-size: 0.95rem; line-height: 1.5; max-width: 650px; margin-bottom: 20px; }
 
@@ -157,17 +151,10 @@
       gap: 16px;
       margin-bottom: 24px;
     }
-
-    .stat-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 20px;
-    }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
     .stat-card .label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
     .stat-card .val { font-size: 1.75rem; font-weight: 700; color: #fff; }
 
-    /* Recorder */
     .recorder-panel {
       text-align: center;
       padding: 40px 20px;
@@ -176,7 +163,6 @@
       align-items: center;
       gap: 20px;
     }
-
     .timer-display { font-size: 3rem; font-weight: 700; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
     .visualizer-canvas { width: 100%; max-width: 500px; height: 60px; background: rgba(0, 0, 0, 0.2); border-radius: 8px; }
     
@@ -215,7 +201,6 @@
       white-space: pre-wrap;
     }
 
-    /* Table */
     .table-container { width: 100%; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
     th { padding: 14px 16px; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; border-bottom: 1px solid var(--border-color); }
@@ -225,13 +210,11 @@
     .btn-icon:hover { color: var(--accent-blue); }
     .btn-icon.delete:hover { color: var(--danger); }
 
-    /* Form Settings */
     .form-group { margin-bottom: 20px; }
     .form-group label { display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 500; }
     .form-control { width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); padding: 12px 16px; border-radius: 8px; color: #fff; font-size: 0.95rem; }
     .form-control:focus { outline: none; border-color: var(--accent-blue); }
 
-    /* Detail Modal Styles */
     .modal-backdrop {
       display: none;
       position: fixed;
@@ -263,17 +246,8 @@
       justify-content: space-between;
       align-items: center;
     }
-    .modal-body {
-      padding: 24px;
-      overflow-y: auto;
-      flex: 1;
-    }
-    .modal-tabs {
-      display: flex;
-      gap: 12px;
-      border-bottom: 1px solid var(--border-color);
-      margin-bottom: 20px;
-    }
+    .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+    .modal-tabs { display: flex; gap: 12px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
     .modal-tab-btn {
       background: none;
       border: none;
@@ -284,10 +258,7 @@
       cursor: pointer;
       border-bottom: 2px solid transparent;
     }
-    .modal-tab-btn.active {
-      color: var(--accent-blue);
-      border-color: var(--accent-blue);
-    }
+    .modal-tab-btn.active { color: var(--accent-blue); border-color: var(--accent-blue); }
     .modal-footer {
       padding: 16px 24px;
       border-top: 1px solid var(--border-color);
@@ -298,19 +269,9 @@
       flex-wrap: wrap;
       gap: 12px;
     }
-    .markmap-container {
-      width: 100%;
-      height: 380px;
-      background: rgba(0, 0, 0, 0.25);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .markmap-container svg {
-      width: 100%;
-      height: 100%;
-    }
+    .markmap-container { width: 100%; height: 380px; background: rgba(0, 0, 0, 0.25); border-radius: 8px; overflow: hidden; }
+    .markmap-container svg { width: 100%; height: 100%; }
 
-    /* Mobile Bottom Navigation */
     .bottom-nav { display: none; }
 
     @media (max-width: 768px) {
@@ -361,24 +322,19 @@
     </div>
     <ul class="nav-list">
       <li class="nav-item active" data-tab="dashboard">
-        <i class="fa-solid fa-chart-pie"></i>
-        <span>Dashboard</span>
+        <i class="fa-solid fa-chart-pie"></i><span>Dashboard</span>
       </li>
       <li class="nav-item" data-tab="record">
-        <i class="fa-solid fa-microphone"></i>
-        <span>Rekam Suara</span>
+        <i class="fa-solid fa-microphone"></i><span>Rekam Suara</span>
       </li>
       <li class="nav-item" data-tab="upload">
-        <i class="fa-solid fa-cloud-arrow-up"></i>
-        <span>Upload File</span>
+        <i class="fa-solid fa-cloud-arrow-up"></i><span>Upload File</span>
       </li>
       <li class="nav-item" data-tab="files">
-        <i class="fa-solid fa-folder-open"></i>
-        <span>File Saya</span>
+        <i class="fa-solid fa-folder-open"></i><span>File Saya</span>
       </li>
       <li class="nav-item" data-tab="settings">
-        <i class="fa-solid fa-gear"></i>
-        <span>Pengaturan</span>
+        <i class="fa-solid fa-gear"></i><span>Pengaturan</span>
       </li>
     </ul>
     <div class="sidebar-footer">Versi Penuh • Node.js 24 Ready</div>
@@ -389,9 +345,7 @@
 
     <!-- TAB 1: DASHBOARD -->
     <section id="dashboard" class="tab-content active">
-      <div class="page-header">
-        <h1>Dashboard</h1>
-      </div>
+      <div class="page-header"><h1>Dashboard</h1></div>
       <div class="welcome-banner">
         <h2>Selamat Datang di RekanSuara AI</h2>
         <p>Rekam rapat atau kuliah, biarkan sistem transkripsi lokal mengubahnya menjadi teks, dan AI akan merangkum serta memvisualisasikannya menjadi Mind Map secara otomatis.</p>
@@ -425,9 +379,7 @@
 
     <!-- TAB 2: REKAM SUARA -->
     <section id="record" class="tab-content">
-      <div class="page-header">
-        <h1>Rekam Suara & Transkrip</h1>
-      </div>
+      <div class="page-header"><h1>Rekam Suara & Transkrip</h1></div>
       <div class="card recorder-panel">
         <h3 style="font-size: 1.1rem; color: var(--text-muted);">Perekam Suara & STT</h3>
         <div class="timer-display" id="timer">00:00</div>
@@ -447,9 +399,7 @@
 
     <!-- TAB 3: UPLOAD FILE -->
     <section id="upload" class="tab-content">
-      <div class="page-header">
-        <h1>Upload File</h1>
-      </div>
+      <div class="page-header"><h1>Upload File</h1></div>
       <div class="card" style="text-align: center; padding: 48px 24px;">
         <i class="fa-solid fa-cloud-arrow-up" style="font-size: 3rem; color: var(--accent-blue); margin-bottom: 16px;"></i>
         <h3 style="margin-bottom: 8px;">Upload Audio/Video</h3>
@@ -458,17 +408,12 @@
         <button class="btn-action" style="background: var(--accent-indigo); color: #fff;" onclick="document.getElementById('file-input').click()">
           <i class="fa-solid fa-file"></i> Pilih File
         </button>
-        <p style="margin-top: 24px; font-size: 0.8rem; color: var(--text-muted);">
-          <i class="fa-solid fa-circle-info"></i> Berkas akan disimpan ke penyimpanan lokal browser dan dapat dianalisis dengan AI.
-        </p>
       </div>
     </section>
 
     <!-- TAB 4: FILE SAYA -->
     <section id="files" class="tab-content">
-      <div class="page-header">
-        <h1>File Saya</h1>
-      </div>
+      <div class="page-header"><h1>File Saya</h1></div>
       <div class="card">
         <div class="table-container">
           <table>
@@ -488,9 +433,7 @@
 
     <!-- TAB 5: PENGATURAN -->
     <section id="settings" class="tab-content">
-      <div class="page-header">
-        <h1>Pengaturan Aplikasi</h1>
-      </div>
+      <div class="page-header"><h1>Pengaturan Aplikasi</h1></div>
       <div class="card">
         <h3 style="margin-bottom: 8px;">Konfigurasi AI (BYOK)</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
@@ -505,7 +448,7 @@
         </div>
         <div class="form-group">
           <label>API Key</label>
-          <input type="password" id="api-key" class="form-control" placeholder="Masukkan API Key (cth: AIzaSy...)">
+          <input type="password" id="api-key" class="form-control" placeholder="Masukkan API Key (AIzaSy...)">
         </div>
         <button class="btn-action" style="background: var(--accent-blue); color: #0b1120;" onclick="saveSettings()">
           Simpan Pengaturan
@@ -515,16 +458,8 @@
       <div class="card">
         <h3 style="margin-bottom: 8px;">Konfigurasi Speech-to-Text</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
-          Aplikasi ini menggunakan <b>Native Web Speech API</b> dari browser. Fitur ini 100% Gratis, diproses secara lokal / melalui service browser bawaan, Tidak perlu API Key untuk perekaman langsung.
+          Aplikasi ini menggunakan <b>Native Web Speech API</b> bawaan browser (100% Gratis, diproses secara lokal tanpa kuota).
         </p>
-      </div>
-
-      <div class="card">
-        <h3 style="margin-bottom: 12px;">Privasi & Automasi</h3>
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9rem;">
-          <input type="checkbox" id="auto-analyze" checked style="width: 18px; height: 18px;">
-          <span>Otomatis analisis dengan AI setelah selesai merekam (Membutuhkan kuota API)</span>
-        </label>
       </div>
     </section>
 
@@ -541,7 +476,6 @@
         <button class="btn-icon" onclick="closeModal()"><i class="fa-solid fa-xmark" style="font-size: 1.4rem;"></i></button>
       </div>
 
-      <!-- Pemutar Audio Lokal -->
       <div style="padding: 16px 24px 0 24px;">
         <audio id="modal-audio" controls style="width: 100%; border-radius: 8px; outline: none;"></audio>
       </div>
@@ -553,23 +487,20 @@
           <button class="modal-tab-btn" onclick="switchModalTab('mindmap')">🧠 Mind Map</button>
         </div>
 
-        <!-- Tab Transkrip -->
         <div id="tab-modal-transcript">
           <textarea id="modal-transcript-text" class="form-control" style="min-height: 280px; font-size: 0.95rem; line-height: 1.6; resize: vertical;"></textarea>
         </div>
 
-        <!-- Tab Analisis AI -->
         <div id="tab-modal-ai" style="display: none;">
           <div id="ai-loading" style="display: none; text-align: center; padding: 40px;">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--accent-blue);"></i>
-            <p style="margin-top: 12px; color: var(--text-muted); font-size: 0.9rem;">Sedang menganalisis transkrip dengan AI...</p>
+            <p id="ai-status-text" style="margin-top: 12px; color: var(--text-muted); font-size: 0.9rem;">Mendeteksi model Gemini dan menganalisis...</p>
           </div>
           <div id="ai-content-box" style="white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
             Belum ada hasil analisis AI. Klik tombol 'Analisis dengan AI' di bawah.
           </div>
         </div>
 
-        <!-- Tab Mind Map -->
         <div id="tab-modal-mindmap" style="display: none;">
           <div class="markmap-container" id="mindmap-container">
             <svg id="markmap-svg"></svg>
@@ -712,7 +643,6 @@
     let audioContext = null;
     let analyser = null;
     let animationId = null;
-    let wakeLockSentinel = null;
 
     const timerEl = document.getElementById('timer');
     const btnRecord = document.getElementById('btn-record-toggle');
@@ -730,10 +660,6 @@
         transcriptBox.textContent = '';
         secondsElapsed = 0;
         timerEl.textContent = '00:00';
-
-        if ('wakeLock' in navigator) {
-          try { wakeLockSentinel = await navigator.wakeLock.request('screen'); } catch(e){}
-        }
 
         timerInterval = setInterval(() => {
           secondsElapsed++;
@@ -779,7 +705,6 @@
       btnRecord.classList.remove('recording');
       recordIcon.className = 'fa-solid fa-microphone';
       clearInterval(timerInterval);
-      if (wakeLockSentinel) wakeLockSentinel.release();
 
       if (recognition) { recognition.stop(); recognition = null; }
       if (animationId) cancelAnimationFrame(animationId);
@@ -793,23 +718,14 @@
             title: `Rekaman ${new Date().toLocaleDateString('id-ID')}, ${new Date().toLocaleTimeString('id-ID')}`,
             date: new Date().toLocaleDateString('id-ID'),
             duration: secondsElapsed,
-            transcript: transcriptBox.textContent.trim() || '(Tidak ada transkrip audio)',
+            transcript: transcriptBox.textContent.trim() || '(Tidak ada suara terdeteksi)',
             statusAI: 'Menunggu...',
             summaryAI: '',
             mindmapMarkdown: '',
             audioBlob: audioBlob
           };
-          const newId = await saveRecording(newRecord);
+          await saveRecording(newRecord);
           renderRecords();
-
-          // Otomatis analisis AI jika diaktifkan
-          const autoAnalyze = document.getElementById('auto-analyze').checked;
-          const apiKey = localStorage.getItem('rekansuara_apikey');
-          if (autoAnalyze && apiKey && newRecord.transcript) {
-            newRecord.id = newId;
-            openModalDetail(newRecord);
-            runAIAnalysis();
-          }
         };
       }
     }
@@ -892,7 +808,6 @@
       });
     }
 
-    // Modal & Audio Controls
     window.openDetailById = async function(id) {
       const records = await getRecordings();
       const rec = records.find(r => r.id === id);
@@ -913,14 +828,12 @@
         audioEl.style.display = 'none';
       }
 
-      // Render tab AI jika sudah ada
       if (rec.summaryAI) {
         document.getElementById('ai-content-box').textContent = rec.summaryAI;
       } else {
-        document.getElementById('ai-content-box').textContent = "Belum ada hasil analisis AI. Klik 'Analisis dengan AI' untuk memproses.";
+        document.getElementById('ai-content-box').textContent = "Belum ada hasil analisis AI. Klik 'Analisis AI' untuk memproses.";
       }
 
-      // Render Mind Map jika ada
       if (rec.mindmapMarkdown) {
         renderMindmap(rec.mindmapMarkdown);
       }
@@ -950,7 +863,6 @@
       }
     };
 
-    // Render Mindmap dengan Markmap Library
     function renderMindmap(markdownText) {
       const svg = document.getElementById('markmap-svg');
       svg.innerHTML = '';
@@ -962,12 +874,12 @@
       }
     }
 
-    // AI Analysis Pipeline (Gemini / OpenAI)
+    // AI Analysis Pipeline DENGAN AUTO-DETECT MODEL
     window.runAIAnalysis = async function() {
       if (!currentActiveRecord) return;
       const transcript = document.getElementById('modal-transcript-text').value.trim();
       if (!transcript || transcript.startsWith('(Tidak ada')) {
-        alert('Transkrip kosong. Rekam atau masukkan teks terlebih dahulu.');
+        alert('Transkrip masih kosong. Rekam suara terlebih dahulu.');
         return;
       }
 
@@ -989,7 +901,27 @@
       try {
         let resultText = '';
         if (provider === 'gemini') {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+          // 1. AUTO-DETECT: Cari model yang aktif dan didukung oleh API Key ini
+          let modelName = 'gemini-1.5-flash-latest';
+          try {
+            const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            if (listRes.ok) {
+              const listData = await listRes.json();
+              const usableModels = listData.models
+                ?.filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+                ?.map(m => m.name.replace('models/', ''));
+
+              if (usableModels && usableModels.length > 0) {
+                // Utamakan model flash yang cepat
+                modelName = usableModels.find(m => m.includes('flash')) || usableModels.find(m => m.includes('gemini')) || usableModels[0];
+              }
+            }
+          } catch(e) {
+            console.warn('Gagal membaca list model:', e);
+          }
+
+          // 2. Eksekusi generateContent dengan model yang terdeteksi
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -1008,13 +940,11 @@
           resultText = data.choices[0].message.content;
         }
 
-        // Ekstraksi Mind Map Markdown
         let mindmapMd = '# RekanSuara Mindmap\n## Topik Rapat';
         if (resultText.includes('### MIND MAP')) {
-          mindmapMd = resultText.split('### MIND MAP')[1].trim();
+          mindmapMd = resultText.split('### MIND MAP').trim();
         }
 
-        // Simpan ke record
         currentActiveRecord.statusAI = 'Selesai';
         currentActiveRecord.summaryAI = resultText;
         currentActiveRecord.mindmapMarkdown = mindmapMd;
@@ -1031,7 +961,6 @@
       }
     };
 
-    // Ekspor ke PDF
     window.exportToPDF = function() {
       if (!currentActiveRecord) return;
       const { jsPDF } = window.jspdf;
@@ -1076,7 +1005,6 @@
       doc.save(`${currentActiveRecord.title.replace(/[/\\?%*:|"<>]/g, '-')}.pdf`);
     };
 
-    // Ekspor ke File Teks (.txt)
     window.exportToText = function() {
       if (!currentActiveRecord) return;
       const content = `=====================================================\nNOTULA & ANALISIS REKANSUARA AI\nJudul: ${currentActiveRecord.title}\nTanggal: ${currentActiveRecord.date}\n=====================================================\n\n[ANALISIS & RINGKASAN AI]\n${currentActiveRecord.summaryAI || 'Belum dianalisis.'}\n\n[TRANSKRIP LENGKAP]\n${document.getElementById('modal-transcript-text').value}\n`;
@@ -1087,7 +1015,6 @@
       a.click();
     };
 
-    // Upload Handler
     document.getElementById('file-input').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (file) {
