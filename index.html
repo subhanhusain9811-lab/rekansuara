@@ -250,7 +250,6 @@
     .btn-icon:hover { color: var(--accent-blue); }
     .btn-icon.delete:hover { color: var(--danger); }
 
-    /* Anti-Zoom pada iOS: font-size minimal 16px */
     .form-group { margin-bottom: 20px; }
     .form-group label { display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 500; }
     .form-control { 
@@ -372,7 +371,7 @@
 
     .bottom-nav { display: none; }
 
-    /* Optimasi Responsif Mobile & Tablet (iOS Notch Safe Area) */
+    /* Responsive Mobile & Tablet */
     @media (max-width: 820px) {
       .sidebar { display: none !important; }
       .main-content { 
@@ -409,24 +408,15 @@
       .bottom-nav-item i { font-size: 1.25rem; }
       .bottom-nav-item.active { color: var(--accent-blue); }
 
-      /* Tampilan Kartu di Ponsel untuk File Saya */
       .table-container table, .table-container thead, .table-container tbody, .table-container th, .table-container td, .table-container tr { display: block; }
       .table-container thead tr { position: absolute; top: -9999px; left: -9999px; }
       .table-container tr { background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--border-color); }
       .table-container td { border: none; padding: 8px 0; display: flex; justify-content: space-between; align-items: center; }
       .table-container td:before { content: attr(data-label); font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
 
-      .modal-card {
-        max-height: 94vh;
-      }
-      .modal-footer {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .modal-footer button {
-        width: 100%;
-        justify-content: center;
-      }
+      .modal-card { max-height: 94vh; }
+      .modal-footer { flex-direction: column; align-items: stretch; }
+      .modal-footer button { width: 100%; justify-content: center; }
     }
   </style>
 </head>
@@ -586,9 +576,9 @@
     <section id="settings" class="tab-content">
       <div class="page-header"><h1>Pengaturan Aplikasi</h1></div>
       <div class="card">
-        <h3 style="margin-bottom: 8px;">Konfigurasi AI (BYOK)</h3>
+        <h3 style="margin-bottom: 8px;">Konfigurasi AI (Permanen / BYOK)</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
-          Pilih provider AI untuk menghasilkan transkripsi berkas, ringkasan, dan peta konsep secara lokal dan aman.
+          API Key permanen telah disematkan di dalam aplikasi. Anda dapat memperbaruinya sewaktu-waktu di kolom bawah ini.
         </p>
         <div class="form-group">
           <label>Provider AI</label>
@@ -606,7 +596,7 @@
         </div>
         <div class="form-group">
           <label>API Key</label>
-          <input type="password" id="api-key" class="form-control" placeholder="Masukkan API Key (AIzaSy...)">
+          <input type="password" id="api-key" class="form-control" placeholder="API Key Permanen Aktif">
         </div>
         <button class="btn-action" style="background: var(--accent-blue); color: #0b1120;" onclick="saveSettings()">
           Simpan Pengaturan
@@ -746,6 +736,16 @@
 
   <!-- Logic Script -->
   <script type="module">
+    // -------------------------------------------------------------
+    // SEMATAN API KEY PERMANEN SEBAGAI FALLBACK DEFAULT
+    // -------------------------------------------------------------
+    const EMBEDDED_API_KEY = 'AQ.Ab8RN6JQbsES999Ra4xoK5esKhCzx0fPSh2_5BEO-YHdASn2UQ';
+
+    function getEffectiveApiKey() {
+      const stored = localStorage.getItem('rekansuara_apikey');
+      return (stored && stored.trim()) ? stored.trim() : EMBEDDED_API_KEY;
+    }
+
     const DB_NAME = 'RekanSuaraDB';
     const DB_VERSION = 1;
     let currentActiveRecord = null;
@@ -827,7 +827,6 @@
       });
     }
 
-    // REGEX PARSER UNIVERSAL
     function parseAIOutput(resultText) {
       let parsedTranscript = '';
       let parsedSummary = '';
@@ -853,7 +852,6 @@
       return { parsedTranscript, parsedSummary, parsedMindmap };
     }
 
-    // Deteksi Format Rekaman Audio yang Didukung Peramban (iOS vs Android)
     function getSupportedMimeType() {
       const types = [
         'audio/webm;codecs=opus',
@@ -931,7 +929,6 @@
           timerEl.textContent = `${mins}:${secs}`;
         }, 1000);
 
-        // Web Audio API Visualizer (Support iOS Safari)
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (AudioCtx) {
           audioContext = new AudioCtx();
@@ -953,7 +950,6 @@
         };
         mediaRecorder.start(1000);
 
-        // Native STT
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
           recognition = new SpeechRecognition();
@@ -1200,9 +1196,9 @@
         return;
       }
 
-      const apiKey = localStorage.getItem('rekansuara_apikey');
+      const apiKey = getEffectiveApiKey();
       if (!apiKey) {
-        alert('API Key belum diisi di Pengaturan.');
+        alert('API Key belum diset.');
         switchTab('settings');
         closeModal();
         return;
@@ -1303,9 +1299,9 @@ Hasilkan HANYA teks transkripsi percakapan lengkap tanpa teks pengantar atau pen
       chatHistory.appendChild(aiBubble);
       chatHistory.scrollTop = chatHistory.scrollHeight;
 
-      const apiKey = localStorage.getItem('rekansuara_apikey');
+      const apiKey = getEffectiveApiKey();
       if (!apiKey) {
-        aiBubble.textContent = 'API Key belum diisi di Pengaturan.';
+        aiBubble.textContent = 'API Key belum diset.';
         return;
       }
 
@@ -1402,9 +1398,9 @@ Hasilkan HANYA teks transkripsi percakapan lengkap tanpa teks pengantar atau pen
     window.startAudioTranscription = async function() {
       if (!selectedUploadFile) return;
 
-      const apiKey = localStorage.getItem('rekansuara_apikey');
+      const apiKey = getEffectiveApiKey();
       if (!apiKey) {
-        alert('API Key belum diisi di Pengaturan.');
+        alert('API Key belum tersedia.');
         switchTab('settings');
         return;
       }
@@ -1558,9 +1554,9 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
         return;
       }
 
-      const apiKey = localStorage.getItem('rekansuara_apikey');
+      const apiKey = getEffectiveApiKey();
       if (!apiKey) {
-        alert('API Key belum diisi di Pengaturan.');
+        alert('API Key belum tersedia.');
         switchTab('settings');
         closeModal();
         return;
@@ -1642,7 +1638,7 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
       }
     };
 
-    // Ekspor Word, PDF, dan Teks (Mobile-Safe Download)
+    // Ekspor Word, PDF, dan Teks
     window.exportToWord = function() {
       if (!currentActiveRecord) return;
       const transcript = document.getElementById('modal-transcript-text').value;
@@ -1756,7 +1752,10 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
     window.saveSettings = function() {
       localStorage.setItem('rekansuara_provider', document.getElementById('ai-provider').value);
       localStorage.setItem('rekansuara_model', document.getElementById('ai-model').value.trim());
-      localStorage.setItem('rekansuara_apikey', document.getElementById('api-key').value.trim());
+      const customKey = document.getElementById('api-key').value.trim();
+      if (customKey) {
+        localStorage.setItem('rekansuara_apikey', customKey);
+      }
       alert('Pengaturan berhasil disimpan!');
     };
 
@@ -1764,7 +1763,8 @@ Tolong lakukan transkripsi dan analisis lengkap dalam bahasa Indonesia dengan fo
       renderRecords();
       const savedProvider = localStorage.getItem('rekansuara_provider');
       const savedModel = localStorage.getItem('rekansuara_model');
-      const savedKey = localStorage.getItem('rekansuara_apikey');
+      const savedKey = localStorage.getItem('rekansuara_apikey') || EMBEDDED_API_KEY;
+      
       if (savedProvider) document.getElementById('ai-provider').value = savedProvider;
       if (savedModel) document.getElementById('ai-model').value = savedModel;
       if (savedKey) document.getElementById('api-key').value = savedKey;
